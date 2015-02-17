@@ -7,7 +7,7 @@ import play.api.Play.current
 
 import scala.slick.driver.H2Driver.simple._
 // import scala.slick.driver.MySQLDriver.simple._
-import Database.threadLocalSession
+// import scala.slick.driver.H2Driver.simple.Database
 
 object Global extends GlobalSettings {
 
@@ -17,7 +17,8 @@ object Global extends GlobalSettings {
 
     database withSession {
       // Create the tables, including primary and foreign keys
-      val ddl = (Suppliers.ddl ++ Coffees.ddl ++ Account.ddl)
+      val Accounts = TableQuery[Account]
+      val ddl = (Suppliers.ddl ++ Coffees.ddl ++ Accounts.ddl)
 
       //ddl.drop
       ddl.create

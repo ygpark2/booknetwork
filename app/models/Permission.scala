@@ -1,16 +1,19 @@
 package models
 
-import scala.slick.lifted.MappedTypeMapper.base
-import scala.slick.lifted.MappedTypeMapper
+import scala.slick.driver.H2Driver.simple._
+// import scala.slick.lifted.MappedColumnType.base
+// import scala.slick.lifted.MappedColumnType
+// import scala.slick
 
 sealed trait Permission
 case object Administrator extends Permission
 case object NormalUser extends Permission
 
 object Permission {
-  implicit val PermissionTimeMapper = MappedTypeMapper.base[Permission, String](
+  implicit val PermissionTimeMapper = MappedColumnType.base[Permission, String](
     d => Permission.stringValueOf(d),
-    t => Permission.valueOf(t))
+    t => Permission.valueOf(t)
+  )
 
   def valueOf(value: String): Permission = value match {
     case "Administrator" => Administrator
