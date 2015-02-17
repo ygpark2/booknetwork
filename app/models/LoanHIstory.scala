@@ -15,13 +15,12 @@ import play.api.data.Form
 import play.api.data.Forms._
 import play.api.i18n.Lang
 
-case class Account(id: Option[Int] = None, email: String, password: String, name: String, permission: String) extends Entity
-
+case class LoanHistory(id: Option[Int] = None, email: String, password: String, name: String, permission: String) extends Entity
 /** Table description of table COMPANY. Objects of this class serve as prototypes for rows in queries. */
-abstract class AccountsTable(tag: Tag) extends Table[Account](tag, "ACCOUNT") with TableBase[Account] {
-  def * = (name, email, password, permission, id.?) <> (Account.tupled, Account.unapply)
+abstract class LoanHistoriesTable(tag: Tag) extends Table[LoanHistory](tag, "LoanHistory") with TableBase[LoanHistory] {
+  def * = (name, email, password, permission, id.?) <> (LoanHistory.tupled, LoanHistory.unapply)
   /** Maps whole row to an option. Useful for outer joins. */
-  def ? = (name.?, email.?, password.?, permission.?, id.?).shaped.<>({r=>import r._; _1.map(_=> Account.tupled((_5, _1.get, _2.get, _3.get, _4.get)))}, (_:Any) =>
+  def ? = (name.?, email.?, password.?, permission.?, id.?).shaped.<>({r=>import r._; _1.map(_=> LoanHistory.tupled((_5, _1.get, _2.get, _3.get, _4.get)))}, (_:Any) =>
     throw new Exception("Inserting into ? projection not supported."))
 
   /** Database column NAME  */
@@ -36,9 +35,9 @@ abstract class AccountsTable(tag: Tag) extends Table[Account](tag, "ACCOUNT") wi
   def tinyDescription = name
 
 }
-class Accounts(tag: Tag) extends AccountsTable(tag)
+class LoanHistories(tag: Tag) extends LoanHistoriesTable(tag)
 
-class AccountModel extends Model[Account, Accounts]{
+class LoanHistoryModel extends Model[LoanHistory, LoanHistories]{
   val playForm = Form(
     mapping(
       "id" -> optional(number),
@@ -46,13 +45,13 @@ class AccountModel extends Model[Account, Accounts]{
       "email" -> nonEmptyText,
       "password" -> nonEmptyText,
       "permission" -> nonEmptyText
-    )(Account.apply)(Account.unapply)
+    )(LoanHistory.apply)(LoanHistory.unapply)
   )
-  def form(playForm: Form[Account]) = AccountForm(playForm=playForm)
+  def form(playForm: Form[LoanHistory]) = LoanHistoryForm(playForm=playForm)
 
-  class AccountLabels extends super.Labels {
-    def singular = "Account".toLowerCase
-    def plural   = "Accounts".toLowerCase
+  class LoanHistoryLabels extends super.Labels {
+    def singular = "LoanHistory".toLowerCase
+    def plural   = "LoanHistories".toLowerCase
     object columns {
       def id: String = "Id"
       def name: String = "Name"
@@ -62,19 +61,19 @@ class AccountModel extends Model[Account, Accounts]{
     }
   }
 
-  val labels = new AccountLabels
+  val labels = new LoanHistoryLabels
 
   val referencedModels: Map[String,Model[_ <: Entity,_]] = Map(
 
   )
 
-  def referencedModelsAndIds(entities: Seq[Account])(implicit session: Session): Map[Model[_ <: Entity,_],Map[Int,Option[(Int,String)]]] = {
+  def referencedModelsAndIds(entities: Seq[LoanHistory])(implicit session: Session): Map[Model[_ <: Entity,_],Map[Int,Option[(Int,String)]]] = {
     Map(
 
     )
   }
 
-  override def tinyDescription(e: Account) = e.name
+  override def tinyDescription(e: LoanHistory) = e.name
 
   val schema = Map(
     "name" -> ("String", false),
@@ -83,13 +82,13 @@ class AccountModel extends Model[Account, Accounts]{
     "permission" -> ("String", false)
   )
 
-  final val query = TableQuery[Accounts]
+  final val query = TableQuery[LoanHistories]
 
   override val html = new Html
 
   class Html extends super.Html{
     def headings = Seq(labels.columns.name)
-    def cells(e: Account) = {
+    def cells(e: LoanHistory) = {
       def render(v: Any) = v match {
         case None => <em> - </em>
         case d:java.sql.Date => new java.text.SimpleDateFormat("dd MMM yyyy").format(d)
@@ -103,10 +102,10 @@ class AccountModel extends Model[Account, Accounts]{
   }
 }
 
-object Accounts extends AccountModel
+object LoanHistories extends LoanHistoryModel
 
-case class AccountForm(playForm: Form[Account]) extends ModelForm[Account]{
-  val model = Accounts
+case class LoanHistoryForm(playForm: Form[LoanHistory]) extends ModelForm[LoanHistory]{
+  val model = LoanHistories
   override val html = new Html
   class Html extends super.Html{
     // ArrayBuffer()
@@ -123,4 +122,4 @@ case class AccountForm(playForm: Form[Account]) extends ModelForm[Account]{
   }
 }
 
-object accounts extends TableQuery(tag => new Accounts(tag))
+object loanHistories extends TableQuery(tag => new LoanHistories(tag))
