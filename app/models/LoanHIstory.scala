@@ -16,11 +16,12 @@ import play.api.data.Forms._
 import play.api.i18n.Lang
 
 case class LoanHistory(id: Option[Int] = None, email: String, password: String, name: String, permission: String) extends Entity
+
 /** Table description of table COMPANY. Objects of this class serve as prototypes for rows in queries. */
-abstract class LoanHistoriesTable(tag: Tag) extends Table[LoanHistory](tag, "LoanHistory") with TableBase[LoanHistory] {
-  def * = (name, email, password, permission, id.?) <> (LoanHistory.tupled, LoanHistory.unapply)
+abstract class LoanHistoriesTable(tag: Tag) extends Table[LoanHistory](tag, "LOAN_HISTORY") with TableBase[LoanHistory] {
+  def * = (id.?, email, password, name, permission) <> (LoanHistory.tupled, LoanHistory.unapply)
   /** Maps whole row to an option. Useful for outer joins. */
-  def ? = (name.?, email.?, password.?, permission.?, id.?).shaped.<>({r=>import r._; _1.map(_=> LoanHistory.tupled((_5, _1.get, _2.get, _3.get, _4.get)))}, (_:Any) =>
+  def ? = (id.?, email.?, password.?, name.?, permission.?).shaped.<>({r=>import r._; _1.map(_=> LoanHistory.tupled((_1, _2.get, _3.get, _4.get, _5.get)))}, (_:Any) =>
     throw new Exception("Inserting into ? projection not supported."))
 
   /** Database column NAME  */

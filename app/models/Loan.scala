@@ -15,13 +15,13 @@ import play.api.data.Form
 import play.api.data.Forms._
 import play.api.i18n.Lang
 
-case class Loan(id: Option[Int] = None, email: String, password: String, name: String, permission: String) extends Entity
+case class Loan(id: Option[Int] = None, bookId: Option[Int], email: String, password: String, name: String, permission: String) extends Entity
 
 /** Table description of table COMPANY. Objects of this class serve as prototypes for rows in queries. */
-abstract class LoansTable(tag: Tag) extends Table[Loan](tag, "Loan") with TableBase[Loan] {
-  def * = (name, email, password, permission, id.?) <> (Loan.tupled, Loan.unapply)
+abstract class LoansTable(tag: Tag) extends Table[Loan](tag, "LOAN") with TableBase[Loan] {
+  def * = (id.?, bookId, email, password, name, permission) <> (Loan.tupled, Loan.unapply)
   /** Maps whole row to an option. Useful for outer joins. */
-  def ? = (name.?, email.?, password.?, permission.?, id.?).shaped.<>({r=>import r._; _1.map(_=> Loan.tupled((_5, _1.get, _2.get, _3.get, _4.get)))}, (_:Any) =>
+  def ? = (id.?, bookId.?, email.?, password.?, name.?, permission.?).shaped.<>({r=>import r._; _1.map(_=> Loan.tupled((_1, _2.get, _3.get, _4.get, _5.get, _6.get)))}, (_:Any) =>
     throw new Exception("Inserting into ? projection not supported."))
 
   /** Database column NAME  */
@@ -32,6 +32,7 @@ abstract class LoansTable(tag: Tag) extends Table[Loan](tag, "Loan") with TableB
 
   /** Database column ID AutoInc, PrimaryKey */
   val id: Column[Int] = column[Int]("ID", O.AutoInc, O.PrimaryKey)
+  val bookId: Column[Option[Int]] = column[Option[Int]]("BOOK_ID")
 
   def tinyDescription = name
 
@@ -42,6 +43,7 @@ class LoanModel extends Model[Loan, Loans]{
   val playForm = Form(
     mapping(
       "id" -> optional(number),
+      "bookId" -> optional(number),
       "name" -> nonEmptyText,
       "email" -> nonEmptyText,
       "password" -> nonEmptyText,
@@ -55,6 +57,7 @@ class LoanModel extends Model[Loan, Loans]{
     def plural   = "Loans".toLowerCase
     object columns {
       def id: String = "Id"
+      def bookId: String = "Book id"
       def name: String = "Name"
       def email: String = "Email"
       def password: String = "Password"
@@ -65,12 +68,19 @@ class LoanModel extends Model[Loan, Loans]{
   val labels = new LoanLabels
 
   val referencedModels: Map[String,Model[_ <: Entity,_]] = Map(
-
+    "bookId" -> Books
   )
 
   def referencedModelsAndIds(entities: Seq[Loan])(implicit session: Session): Map[Model[_ <: Entity,_],Map[Int,Option[(Int,String)]]] = {
     Map(
-
+      {
+        val rEntities = Books.query.filter(
+          _.id inSet entities.flatMap(_.bookId).distinct
+        ).map(b => b.id -> (b.id -> b.tinyDescription)).run.toMap
+        Books -> entities.map( e =>
+          e.id.get -> e.bookId.flatMap(rEntities.get)
+        ).toMap
+      }
     )
   }
 

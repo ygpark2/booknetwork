@@ -18,10 +18,10 @@ import play.api.i18n.Lang
 case class Book(id: Option[Int] = None, email: String, password: String, name: String, permission: String) extends Entity
 
 /** Table description of table COMPANY. Objects of this class serve as prototypes for rows in queries. */
-abstract class BooksTable(tag: Tag) extends Table[Book](tag, "Book") with TableBase[Book] {
-  def * = (name, email, password, permission, id.?) <> (Book.tupled, Book.unapply)
+abstract class BooksTable(tag: Tag) extends Table[Book](tag, "BOOK") with TableBase[Book] {
+  def * = (id.?, email, password, name, permission) <> (Book.tupled, Book.unapply)
   /** Maps whole row to an option. Useful for outer joins. */
-  def ? = (name.?, email.?, password.?, permission.?, id.?).shaped.<>({r=>import r._; _1.map(_=> Book.tupled((_5, _1.get, _2.get, _3.get, _4.get)))}, (_:Any) =>
+  def ? = (id.?, email.?, password.?, name.?, permission.?).shaped.<>({r=>import r._; _1.map(_=> Book.tupled((_1, _2.get, _3.get, _4.get, _5.get)))}, (_:Any) =>
     throw new Exception("Inserting into ? projection not supported."))
 
   /** Database column NAME  */

@@ -10,6 +10,18 @@ import play.api.data.Form
 import views.html.helper._
 import play.api.i18n.Lang
 
+object Model{
+  def all = byName.values
+  def byName: Map[String,Model[_ <: Entity,_ <: TableBase[_ <: Entity]]] = Map(
+    "account" -> Accounts,
+    "book" -> Books,
+    "loan" -> Loans,
+    "LoanHistory" -> LoanHistories,
+    "Reservation" -> Reservations,
+    "Title" -> Titles
+  )
+}
+
 trait Entity{
   def id: Option[Int]
 }

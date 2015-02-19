@@ -18,10 +18,10 @@ import play.api.i18n.Lang
 case class Title(id: Option[Int] = None, email: String, password: String, name: String, permission: String) extends Entity
 
 /** Table description of table COMPANY. Objects of this class serve as prototypes for rows in queries. */
-abstract class TitlesTable(tag: Tag) extends Table[Title](tag, "Title") with TableBase[Title] {
-  def * = (name, email, password, permission, id.?) <> (Title.tupled, Title.unapply)
+abstract class TitlesTable(tag: Tag) extends Table[Title](tag, "TITLE") with TableBase[Title] {
+  def * = (id.?, email, password, name, permission) <> (Title.tupled, Title.unapply)
   /** Maps whole row to an option. Useful for outer joins. */
-  def ? = (name.?, email.?, password.?, permission.?, id.?).shaped.<>({r=>import r._; _1.map(_=> Title.tupled((_5, _1.get, _2.get, _3.get, _4.get)))}, (_:Any) =>
+  def ? = (id.?, email.?, password.?, name.?, permission.?).shaped.<>({r=>import r._; _1.map(_=> Title.tupled((_1, _2.get, _3.get, _4.get, _5.get)))}, (_:Any) =>
     throw new Exception("Inserting into ? projection not supported."))
 
   /** Database column NAME  */
