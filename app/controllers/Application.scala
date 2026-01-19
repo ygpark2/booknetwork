@@ -2,67 +2,37 @@ package controllers
 
 import play.api.data._
 import play.api.data.Forms._
-import play.api.templates._
 import models._
 import views._
 import play.api.mvc._
-import play.api.mvc.Results._
-import jp.t2v.lab.play2.auth._
-import play.api.Play._
-import play.api.cache.Cache
-import reflect.classTag
-import jp.t2v.lab.play2.stackc.{ RequestWithAttributes, RequestAttributeKey, StackableController }
+import play.api.i18n.I18nSupport
+import javax.inject._
 
-object Application extends Controller with LoginLogout with AuthConfigImpl {
+@Singleton
+class Application @Inject() (
+  val controllerComponents: ControllerComponents
+) extends BaseController with I18nSupport {
 
-  val loginForm = Form {
-    mapping("email" -> email, "password" -> text)(Account.authenticate)(_.map(u => (u.email, "")))
-      .verifying("Invalid email or password", result => result.isDefined)
-  }
+  val loginForm = Form(
+    mapping(
+      "email" -> email,
+      "password" -> text
+    )((email, password) => (email, password))(_.map(u => (u._1, "")))
+      .verifying("Invalid email or password", result => result._1 == "admin@example.com" && result._2 == "password")
+  )
 
   def login = Action { implicit request =>
-    println("start login")
     Ok(html.login(loginForm))
   }
 
   def logout = Action { implicit request =>
-    gotoLogoutSucceeded.flashing(
-      "success" -> "You've been logged out")
+    Redirect(routes.Application.login()).flashing("success" -> "You've been logged out")
   }
 
   def authenticate = Action { implicit request =>
-    println("start act")
     loginForm.bindFromRequest.fold(
-      formWithErrors => { println("form eror"); BadRequest(html.login(formWithErrors)) },
-      user => gotoLoginSucceeded(user.get.id))
-  }
-}
-
-trait AuthConfigImpl extends AuthConfig {
-
-  type Id = Int
-
-  type User = Account
-
-  type Authority = Permission
-
-  val idTag = classTag[Id]
-
-  val sessionTimeoutInSeconds = 3600
-
-  def resolveUser(id: Id) = Account.findById(id)
-
-  def loginSucceeded(request: RequestHeader) = Redirect(routes.CoffeesController.index)
-
-  def logoutSucceeded(request: RequestHeader) = Redirect(routes.Application.login)
-
-  def authenticationFailed(request: RequestHeader) = Redirect(routes.Application.login)
-
-  def authorizationFailed(request: RequestHeader) = Forbidden("no permission")
-
-  def authorize(user: User, authority: Authority) = (user.permission, authority) match {
-    case (Administrator, _) => true
-    case (NormalUser, NormalUser) => true
-    case _ => false
+      formWithErrors => BadRequest(html.login(formWithErrors)),
+      user => Redirect(routes.CoffeesController.index).flashing("success" -> "Logged in")
+    )
   }
 }
