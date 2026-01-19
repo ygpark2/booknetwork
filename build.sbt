@@ -13,6 +13,7 @@ resolvers ++= Seq(
 
 libraryDependencies ++= Seq(
   jdbc,
+  guice,
   ws,
   "org.playframework" %% "play-slick" % "6.2.0",
   "org.playframework.silhouette" %% "play-silhouette" % "10.0.4",

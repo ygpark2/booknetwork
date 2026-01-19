@@ -1,0 +1,11 @@
+@(bookForm: play.api.data.Form[forms.BookForm])(implicit messages: play.api.i18n.Messages)
+
+@main("Add Book") {
+  <h1>Add a new book</h1>
+  @helper.form(action = routes.BookController.save) {
+    @helper.inputText(bookForm("title"), Symbol("_label") -> "Title")
+    @helper.inputText(bookForm("author"), Symbol("_label") -> "Author")
+    @helper.textarea(bookForm("description"), Symbol("_label") -> "Description")
+    <button type="submit">Save</button>
+  }
+}
