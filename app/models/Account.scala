@@ -1,44 +1,29 @@
 package models
 
-import scala.slick.driver.H2Driver.simple._
-// import scala.slick.driver.PostgresDriver.simple._
-import play.api.db.slick._
-import play.api.db.slick.Session
-import java.util.Date
-import java.sql.{ Date => SqlDate }
-// import play.api._
-// import play.api.Play.current
-// import play.api.libs.json._
-import scala.slick.lifted.Tag
+import slick.jdbc.H2Profile.api._
+import slick.jdbc.JdbcBackend
+import javax.inject.Inject
+import scala.concurrent.Future
+import scala.concurrent.ExecutionContext.Implicits.global
 import views.html.helper._
 import play.api.data.Form
 import play.api.data.Forms._
-import play.api.i18n.Lang
 
 case class Account(id: Option[Int] = None, email: String, password: String, name: String, permission: String) extends Entity
 
-/** Table description of table COMPANY. Objects of this class serve as prototypes for rows in queries. */
-abstract class AccountsTable(tag: Tag) extends Table[Account](tag, "ACCOUNT") with TableBase[Account] {
-  def * = (id.?, email, password, name, permission) <> (Account.tupled, Account.unapply)
-  /** Maps whole row to an option. Useful for outer joins. */
-  def ? = (id.?, email.?, password.?, name.?, permission.?).shaped.<>({r=>import r._; _1.map(_=> Account.tupled((_1, _2.get, _3.get, _4.get, _5.get)))}, (_:Any) =>
-    throw new Exception("Inserting into ? projection not supported."))
+class Accounts(tag: Tag) extends Table[Account](tag, "ACCOUNT") with TableBase[Account] {
+  def * = (id.?, email, password, name, permission).mapTo[Account]
 
-  /** Database column NAME  */
-  val name: Column[String] = column[String]("NAME")
-  val email: Column[String] = column[String]("EMAIL")
-  val password: Column[String] = column[String]("PASSWORD")
-  val permission: Column[String] = column[String]("PERMISSION")
-
-  /** Database column ID AutoInc, PrimaryKey */
-  val id: Column[Int] = column[Int]("ID", O.AutoInc, O.PrimaryKey)
+  val id: Rep[Int] = column[Int]("ID", O.PrimaryKey, O.AutoInc)
+  val email: Rep[String] = column[String]("EMAIL")
+  val password: Rep[String] = column[String]("PASSWORD")
+  val name: Rep[String] = column[String]("NAME")
+  val permission: Rep[String] = column[String]("PERMISSION")
 
   def tinyDescription = name
-
 }
-class Accounts(tag: Tag) extends AccountsTable(tag)
 
-class AccountModel extends Model[Account, Accounts]{
+class AccountModel(implicit db: JdbcBackend#Database) extends Model[Account]{
   val playForm = Form(
     mapping(
       "id" -> optional(number),
@@ -68,10 +53,8 @@ class AccountModel extends Model[Account, Accounts]{
 
   )
 
-  def referencedModelsAndIds(entities: Seq[Account])(implicit session: Session): Map[Model[_ <: Entity,_],Map[Int,Option[(Int,String)]]] = {
-    Map(
-
-    )
+  def referencedModelsAndIds(entities: Seq[Account])(implicit db: JdbcBackend#Database): Future[Map[Model[_ <: Entity],Map[Int,Option[(Int,String)]]]] = {
+    Future.successful(Map.empty)
   }
 
   override def tinyDescription(e: Account) = e.name
@@ -92,7 +75,7 @@ class AccountModel extends Model[Account, Accounts]{
     def cells(e: Account) = {
       def render(v: Any) = v match {
         case None => <em> - </em>
-        case d:java.sql.Date => new java.text.SimpleDateFormat("dd MMM yyyy").format(d)
+        case d:java.time.LocalDate => d.toString
         case v => v.toString
       }
       Seq[Any](e.name).map{
@@ -109,18 +92,15 @@ case class AccountForm(playForm: Form[Account]) extends ModelForm[Account]{
   val model = Accounts
   override val html = new Html
   class Html extends super.Html{
-    // ArrayBuffer()
-    def allInputs(implicit handler: FieldConstructor, lang: Lang) = Seq(
+    def allInputs(implicit handler: FieldConstructor) = Seq(
       inputs.name
     )
     object inputs{
-      def name(implicit handler: FieldConstructor, lang: Lang) = inputText(playForm("name"), '_label -> model.labels.columns.name)
-      def email(implicit handler: FieldConstructor, lang: Lang) = inputText(playForm("email"), '_label -> model.labels.columns.email)
-      def password(implicit handler: FieldConstructor, lang: Lang) = inputText(playForm("password"), '_label -> model.labels.columns.password)
-      def permission(implicit handler: FieldConstructor, lang: Lang) = inputText(playForm("permission"), '_label -> model.labels.columns.permission)
-      def id(implicit handler: FieldConstructor, lang: Lang) = inputText(playForm("id"), '_label -> model.labels.columns.id)
+      def name(implicit handler: FieldConstructor) = inputText(playForm("name"), '_label -> model.labels.columns.name)
+      def email(implicit handler: FieldConstructor) = inputText(playForm("email"), '_label -> model.labels.columns.email)
+      def password(implicit handler: FieldConstructor) = inputText(playForm("password"), '_label -> model.labels.columns.password)
+      def permission(implicit handler: FieldConstructor) = inputText(playForm("permission"), '_label -> model.labels.columns.permission)
+      def id(implicit handler: FieldConstructor) = inputText(playForm("id"), '_label -> model.labels.columns.id)
     }
   }
 }
-
-object accounts extends TableQuery(tag => new Accounts(tag))

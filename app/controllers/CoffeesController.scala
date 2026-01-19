@@ -4,23 +4,18 @@ import play.api._
 import play.api.mvc._
 import play.api.data._
 import play.api.data.Forms._
-import play.api.db.DB
-import play.api.Play.current
-
-import jp.t2v.lab.play2.auth._
+import play.api.i18n.I18nSupport
+import javax.inject._
 
 import views._
 import models._
+import slick.jdbc.JdbcBackend.Database
 
-// Use H2Driver to connect to an H2 database
-import scala.slick.driver.H2Driver.simple._
-
-// Use the implicit threadLocalSession
-import Database.threadLocalSession
-
-object CoffeesController extends Controller with AuthElement with AuthConfigImpl {
-
-  lazy val database = Database.forDataSource(DB.getDataSource())
+@Singleton
+class CoffeesController @Inject() (
+  val controllerComponents: ControllerComponents,
+  db: Database
+) extends BaseController with I18nSupport {
 
   val pageSize = 3
 
