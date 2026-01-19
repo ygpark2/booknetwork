@@ -1,10 +1,10 @@
 package modules
 
-import com.google.inject.{AbstractModule, Provides, Singleton}
+import com.google.inject.AbstractModule
+import jakarta.inject.{Inject, Provides, Singleton}
 import play.api.db.{Database => PlayDatabase}
 import slick.jdbc.H2Profile.api._
 import models._
-import javax.inject.Inject
 
 class DatabaseModule extends AbstractModule {
 
@@ -16,4 +16,8 @@ class DatabaseModule extends AbstractModule {
   def slickDatabase(db: PlayDatabase): slick.jdbc.JdbcBackend#DatabaseDef = {
     Database.forDataSource(db.dataSource)
   }
+}
+
+class DatabaseInitializer @Inject()(db: slick.jdbc.JdbcBackend#DatabaseDef) {
+  // Database initialization complete
 }

@@ -14,12 +14,14 @@ import play.api.i18n.Lang
 object Model{
   def all = byName.values
   def byName: Map[String,Model[_ <: Entity,_]] = Map(
-    "account" -> Accounts,
+    "user" -> Users,
     "book" -> Books,
     "loan" -> Loans,
-    "LoanHistory" -> LoanHistories,
-    "Reservation" -> Reservations,
-    "Title" -> Titles
+    "post" -> Posts,
+    "comment" -> Comments,
+    "like" -> Likes,
+    "follow" -> Follows,
+    "review" -> Reviews
   )
 }
 
