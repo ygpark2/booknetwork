@@ -4,7 +4,7 @@ version := "1.0-SNAPSHOT"
 
 lazy val root = (project in file(".")).enablePlugins(PlayScala)
 
-scalaVersion := "2.13.18"
+scalaVersion := "3.7.4"
 
 resolvers ++= Seq(
   "Typesafe repository" at "https://repo.typesafe.com/typesafe/releases/",
@@ -14,11 +14,10 @@ resolvers ++= Seq(
 libraryDependencies ++= Seq(
   jdbc,
   ws,
-  "com.typesafe.play" %% "play-slick" % "5.1.0",
-  "com.github.mohiva" %% "play-silhouette" % "7.0.0",
-  "com.github.mohiva" %% "play-silhouette-password-bcrypt" % "7.0.0",
-  "com.github.mohiva" %% "play-silhouette-persistence" % "7.0.0",
-  "org.slf4j" % "slf4j-nop" % "2.0.16",
+  "org.playframework" %% "play-slick" % "6.2.0",
+  "org.playframework.silhouette" %% "play-silhouette" % "10.0.4",
+  "org.playframework.silhouette" %% "play-silhouette-password-bcrypt" % "10.0.4",
+  "org.playframework.silhouette" %% "play-silhouette-persistence" % "10.0.4",
   "com.h2database" % "h2" % "2.4.240",
-  "org.xerial" % "sqlite-jdbc" % "3.47.1.0"
+  "org.xerial" % "sqlite-jdbc" % "3.49.1.0"
 )

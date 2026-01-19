@@ -12,16 +12,16 @@
         
         <fieldset>
         
-            @inputText(coffeeForm("name"), '_label -> "Coffee name")
-            @inputText(coffeeForm("price"), '_label -> "Price")
-            @inputText(coffeeForm("sales"), '_label -> "Sales")
-            @inputText(coffeeForm("total"), '_label -> "Total")
+            @inputText(coffeeForm("name"), Symbol("_label") -> "Coffee name")
+            @inputText(coffeeForm("price"), Symbol("_label") -> "Price")
+            @inputText(coffeeForm("sales"), Symbol("_label") -> "Sales")
+            @inputText(coffeeForm("total"), Symbol("_label") -> "Total")
 
             @select(
-                coffeeForm("supID"), 
-                suppliers, 
-                '_label -> "Supplier", '_default -> "-- Choose a supplier --",
-                '_showConstraints -> false
+                coffeeForm("supID"),
+                suppliers,
+                Symbol("_label") -> "Supplier", Symbol("_default") -> "-- Choose a supplier --",
+                Symbol("_showConstraints") -> false
             )
             
 
