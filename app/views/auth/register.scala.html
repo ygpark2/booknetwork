@@ -1,0 +1,29 @@
+@(registerForm: play.api.data.Form[forms.RegisterForm])(implicit messages: play.api.i18n.Messages, request: play.api.mvc.RequestHeader)
+
+@main("Register") {
+  <h1>Register</h1>
+
+  @if(request.flash.get("error").isDefined) {
+    <div style="color: red;">
+      @request.flash.get("error")
+    </div>
+  }
+
+  @if(request.flash.get("success").isDefined) {
+    <div style="color: green;">
+      @request.flash.get("success")
+    </div>
+  }
+
+  @helper.form(action = routes.AuthController.registerSubmit) {
+    @helper.CSRF.formField
+    @helper.inputText(registerForm("name"), Symbol("_label") -> "Name")
+    @helper.inputText(registerForm("email"), Symbol("_label") -> "Email")
+    @helper.inputPassword(registerForm("password"), Symbol("_label") -> "Password")
+    <button type="submit">Register</button>
+  }
+
+  <p>
+    Already have an account? <a href="@routes.AuthController.login">Login here</a>
+  </p>
+}

@@ -1,8 +1,8 @@
-@(bookForm: play.api.data.Form[forms.BookForm])(implicit messages: play.api.i18n.Messages, request: play.api.mvc.RequestHeader)
+@(bookId: Long, bookForm: play.api.data.Form[forms.BookForm])(implicit messages: play.api.i18n.Messages, request: play.api.mvc.RequestHeader)
 
-@main("Add Book") {
-  <h1>Add a new book</h1>
-  @helper.form(action = routes.BookController.save) {
+@main("Edit Book") {
+  <h1>Edit Book</h1>
+  @helper.form(action = routes.BookController.update(bookId)) {
     @helper.CSRF.formField
     @helper.inputText(bookForm("title"), Symbol("_label") -> "Title")
     @helper.inputText(bookForm("author"), Symbol("_label") -> "Author")

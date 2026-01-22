@@ -1,11 +1,13 @@
-@(books: Seq[models.Book])(implicit messages: play.api.i18n.Messages)
+@(books: Seq[models.Book])(implicit messages: play.api.i18n.Messages, request: play.api.mvc.RequestHeader)
 
 @main("Books") {
   <h1>Books</h1>
   <a href="@routes.BookController.create">Add a book</a>
   <ul>
     @for(book <- books) {
-      <li>@book.title by @book.author</li>
+      <li>
+        <a href="@routes.BookController.detail(book.id)">@book.title</a> by @book.author
+      </li>
     }
   </ul>
 }

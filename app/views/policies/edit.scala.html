@@ -1,0 +1,12 @@
+@(policyForm: play.api.data.Form[forms.PolicyForm])(implicit messages: play.api.i18n.Messages, request: play.api.mvc.RequestHeader)
+
+@main("Penalties") {
+  <h1>Penalty Policy</h1>
+  @helper.form(action = routes.PolicyController.update) {
+    @helper.CSRF.formField
+    @helper.inputText(policyForm("defaultLoanDays"), Symbol("_label") -> "Default Loan Days")
+    @helper.inputText(policyForm("maxExtensions"), Symbol("_label") -> "Max Extensions")
+    @helper.inputText(policyForm("dailyOverdueFee"), Symbol("_label") -> "Daily Overdue Fee")
+    <button type="submit">Save</button>
+  }
+}

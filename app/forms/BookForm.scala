@@ -1,8 +1,10 @@
 package forms
 
-case class BookForm(title: String, author: String, description: Option[String])
+import models.BookMetadata
 
-object BookForm {
-  def tupled(title: String, author: String, description: Option[String]): BookForm =
-    BookForm(title, author, description)
-}
+case class BookForm(
+  title: String,
+  author: String,
+  description: Option[String],
+  metadata: BookMetadata
+)

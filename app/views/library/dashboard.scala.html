@@ -1,0 +1,12 @@
+@(loans: Seq[models.Loan])(implicit messages: play.api.i18n.Messages, request: play.api.mvc.RequestHeader)
+
+@main("My Library") {
+  <h1>My Library</h1>
+
+  <h3>Borrowed Books</h3>
+  <ul>
+    @for(loan <- loans) {
+      <li>Loan #@loan.id | Item: @loan.bookItemId | Due: @loan.dueAt | Status: @loan.status</li>
+    }
+  </ul>
+}

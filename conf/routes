@@ -4,3 +4,22 @@ GET     /                       controllers.Application.index
 GET     /books                  controllers.BookController.list
 GET     /books/create           controllers.BookController.create
 POST    /books/save             controllers.BookController.save
+GET     /books/:id              controllers.BookController.detail(id: Long)
+GET     /books/:id/edit         controllers.BookController.edit(id: Long)
+POST    /books/:id/update       controllers.BookController.update(id: Long)
+POST    /books/:id/items        controllers.BookController.addItem(id: Long)
+
+GET     /loans                  controllers.LoanController.index
+POST    /loans/checkout         controllers.LoanController.checkout
+POST    /loans/:id/return       controllers.LoanController.returnLoan(id: Long)
+
+GET     /library                controllers.LibraryController.dashboard
+
+GET     /policies               controllers.PolicyController.edit
+POST    /policies               controllers.PolicyController.update
+
+GET     /auth/register           controllers.AuthController.register
+POST    /auth/register           controllers.AuthController.registerSubmit
+GET     /auth/login              controllers.AuthController.login
+POST    /auth/login              controllers.AuthController.loginSubmit
+POST    /auth/logout             controllers.AuthController.logout
