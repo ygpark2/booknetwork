@@ -1,0 +1,28 @@
+@(loginForm: play.api.data.Form[forms.LoginForm])(implicit messages: play.api.i18n.Messages, request: play.api.mvc.RequestHeader)
+
+@main("Login") {
+  <h1>Login</h1>
+
+  @if(request.flash.get("error").isDefined) {
+    <div style="color: red;">
+      @request.flash.get("error")
+    </div>
+  }
+
+  @if(request.flash.get("success").isDefined) {
+    <div style="color: green;">
+      @request.flash.get("success")
+    </div>
+  }
+
+  @helper.form(action = routes.AuthController.loginSubmit) {
+    @helper.CSRF.formField
+    @helper.inputText(loginForm("email"), Symbol("_label") -> "Email")
+    @helper.inputPassword(loginForm("password"), Symbol("_label") -> "Password")
+    <button type="submit">Login</button>
+  }
+
+  <p>
+    Don't have an account? <a href="@routes.AuthController.register">Register here</a>
+  </p>
+}

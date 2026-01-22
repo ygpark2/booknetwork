@@ -1,4 +1,4 @@
-@(title: String)(content: Html)(implicit messages: play.api.i18n.Messages)
+@(title: String)(content: Html)(implicit messages: play.api.i18n.Messages, request: play.api.mvc.RequestHeader)
 
 <!DOCTYPE html>
 <html>
@@ -6,6 +6,35 @@
     <title>@title</title>
 </head>
 <body>
+    <nav>
+        <a href="@routes.BookController.list">Books</a>
+        <a href="@routes.LoanController.index">Loans</a>
+        <a href="@routes.LibraryController.dashboard">My Library</a>
+        <a href="@routes.PolicyController.edit">Penalties</a>
+        @request.session.get("userEmail").map { userEmail =>
+            <span>Welcome, @userEmail</span>
+            <form action="@routes.AuthController.logout" method="POST" style="display: inline;">
+                @helper.CSRF.formField
+                <button type="submit">Logout</button>
+            </form>
+        }.getOrElse {
+            <a href="@routes.AuthController.login">Login</a>
+            <a href="@routes.AuthController.register">Register</a>
+        }
+    </nav>
+
+    @if(request.flash.get("success").isDefined) {
+        <div style="color: green;">
+            @request.flash.get("success")
+        </div>
+    }
+
+    @if(request.flash.get("error").isDefined) {
+        <div style="color: red;">
+            @request.flash.get("error")
+        </div>
+    }
+
     @content
 </body>
 </html>

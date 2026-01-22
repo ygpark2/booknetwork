@@ -1,0 +1,52 @@
+@(book: models.Book, items: Seq[models.BookItem], itemForm: play.api.data.Form[(String, Option[String], Option[String])])(implicit messages: play.api.i18n.Messages, request: play.api.mvc.RequestHeader)
+
+@main("Book Detail") {
+  <h1>@book.title</h1>
+  <p><strong>Author:</strong> @book.author</p>
+  @book.metadata.subtitle.map { subtitle =>
+    <p><strong>Subtitle:</strong> @subtitle</p>
+  }
+  @book.description.map { description =>
+    <p><strong>Description:</strong> @description</p>
+  }
+  <h3>Metadata</h3>
+  <ul>
+    <li><strong>ISBN-10:</strong> @book.metadata.isbn10.getOrElse("-")</li>
+    <li><strong>ISBN-13:</strong> @book.metadata.isbn13.getOrElse("-")</li>
+    <li><strong>ISSN:</strong> @book.metadata.issn.getOrElse("-")</li>
+    <li><strong>Publisher:</strong> @book.metadata.publisher.getOrElse("-")</li>
+    <li><strong>Publication Year:</strong> @book.metadata.publicationYear.map(_.toString).getOrElse("-")</li>
+    <li><strong>Edition:</strong> @book.metadata.edition.getOrElse("-")</li>
+    <li><strong>Language:</strong> @book.metadata.language.getOrElse("-")</li>
+    <li><strong>Subjects:</strong> @book.metadata.subjects.getOrElse("-")</li>
+    <li><strong>Classification:</strong> @book.metadata.classification.getOrElse("-")</li>
+    <li><strong>Call Number Base:</strong> @book.metadata.callNumberBase.getOrElse("-")</li>
+    <li><strong>Format:</strong> @book.metadata.format.getOrElse("-")</li>
+    <li><strong>Pages:</strong> @book.metadata.pages.map(_.toString).getOrElse("-")</li>
+    <li><strong>Dimensions:</strong> @book.metadata.dimensions.getOrElse("-")</li>
+  </ul>
+
+  <h3>Items</h3>
+  <ul>
+    @for(item <- items) {
+      <li>
+        <strong>Barcode:</strong> @item.barcode
+        <span> | Status: @item.status</span>
+        <span> | Location: @item.location.getOrElse("-")</span>
+      </li>
+    }
+  </ul>
+
+  <h3>Add Item</h3>
+  @helper.form(action = routes.BookController.addItem(book.id)) {
+    @helper.CSRF.formField
+    @helper.inputText(itemForm("barcode"), Symbol("_label") -> "Barcode")
+    @helper.inputText(itemForm("callNumber"), Symbol("_label") -> "Call Number")
+    @helper.inputText(itemForm("location"), Symbol("_label") -> "Location")
+    <button type="submit">Add Item</button>
+  }
+
+  <p>
+    <a href="@routes.BookController.edit(book.id)">Edit book</a>
+  </p>
+}

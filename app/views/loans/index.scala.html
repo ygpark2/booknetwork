@@ -1,0 +1,33 @@
+@(loanForm: play.api.data.Form[forms.LoanForm], activeLoans: Seq[models.Loan], ownerItems: Seq[models.BookItem])(implicit messages: play.api.i18n.Messages, request: play.api.mvc.RequestHeader)
+
+@main("Loans") {
+  <h1>Loans</h1>
+
+  <h3>Checkout a book item</h3>
+  @helper.form(action = routes.LoanController.checkout) {
+    @helper.CSRF.formField
+    @helper.inputText(loanForm("bookItemId"), Symbol("_label") -> "Book Item ID")
+    @helper.inputText(loanForm("borrowerEmail"), Symbol("_label") -> "Borrower Email")
+    <button type="submit">Checkout</button>
+  }
+
+  <h3>Active Loans</h3>
+  <ul>
+    @for(loan <- activeLoans) {
+      <li>
+        Loan #@loan.id | Item: @loan.bookItemId | Borrower: @loan.borrowerId | Due: @loan.dueAt
+        @helper.form(action = routes.LoanController.returnLoan(loan.id)) {
+          @helper.CSRF.formField
+          <button type="submit">Return</button>
+        }
+      </li>
+    }
+  </ul>
+
+  <h3>My Items</h3>
+  <ul>
+    @for(item <- ownerItems) {
+      <li>Item #@item.id | Barcode: @item.barcode | Status: @item.status</li>
+    }
+  </ul>
+}
