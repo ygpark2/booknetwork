@@ -1,0 +1,50 @@
+@(comment: models.BookComment, user: models.User, allComments: Seq[(models.BookComment, models.User)], bookId: Long)(implicit messages: play.api.i18n.Messages, request: play.api.mvc.RequestHeader)
+
+<div class="comment-group" id="comment-@comment.id" style="@if(comment.parentId.isDefined){ margin-left: 2rem; border-left: 1px solid var(--border-color); }">
+    <article class="feed-item" style="border-bottom: 1px solid var(--border-color); padding: 0.75rem 1rem;">
+        <header class="feed-header">
+            <div class="avatar" style="@if(comment.parentId.isDefined){ width: 32px; height: 32px; font-size: 0.8rem; } else { width: 40px; height: 40px; } background-color: #8b949e; color: #0d1117;">
+                @user.name.headOption.getOrElse('?')
+            </div>
+            <div class="user-info">
+                <span class="user-name" style="font-size: 0.9rem;">@user.name</span>
+                <span class="user-handle" style="font-size: 0.8rem;">@@@user.email.split("@").headOption.getOrElse("user")</span>
+            </div>
+            <span class="timestamp" style="font-size: 0.8rem;">
+                @{
+                    val now = java.time.LocalDateTime.now()
+                    val duration = java.time.Duration.between(comment.createdAt, now)
+                    if (duration.toHours < 24) s"${duration.toHours}h"
+                    else s"${duration.toDays}d"
+                }
+            </span>
+        </header>
+        <div class="feed-content" style="margin-left: @if(comment.parentId.isDefined){ 2.5rem } else { 3.25rem }; margin-top: -0.5rem;">
+            <p style="font-size: 0.95rem;">@comment.content</p>
+        </div>
+        <footer class="feed-actions" style="margin-left: @if(comment.parentId.isDefined){ 2.5rem } else { 3.25rem }; margin-top: 0.5rem;">
+            <button class="action-btn" style="font-size: 0.8rem;" onclick="showReplyForm(@comment.id)">
+                <i class="fa-regular fa-comment"></i> Reply
+            </button>
+        </footer>
+    </article>
+
+    <!-- Inline Reply Form -->
+    <div id="reply-form-@comment.id" class="reply-form-inline" style="display: none; margin-left: @if(comment.parentId.isDefined){ 2.5rem } else { 3.25rem }; padding: 0.75rem; border-bottom: 1px solid var(--border-color);">
+         @helper.form(action = routes.InteractionController.comment(bookId)) {
+            @helper.CSRF.formField
+            <input type="hidden" name="parentId" value="@comment.id">
+            <div style="display: flex; gap: 0.5rem;">
+                <textarea name="content" class="comment-input" style="height: 40px; font-size: 0.9rem;" placeholder="Post your reply" required></textarea>
+                <button type="submit" class="post-btn" style="padding: 0 1rem; font-size: 0.85rem;">Reply</button>
+            </div>
+         }
+    </div>
+
+    <!-- Recursive Call for Children -->
+    <div class="replies-container">
+        @for((child, childUser) <- allComments.filter(_._1.parentId.contains(comment.id))) {
+            @views.html.books.commentItem(child, childUser, allComments, bookId)
+        }
+    </div>
+</div>
