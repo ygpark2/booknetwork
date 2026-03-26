@@ -1,34 +1,124 @@
-@(bookForm: play.api.data.Form[forms.BookForm])(implicit messages: play.api.i18n.Messages, request: play.api.mvc.RequestHeader)
+@(bookForm: play.api.data.Form[forms.BookForm], trendingBooks: Seq[models.Book] = Nil)(implicit messages: play.api.i18n.Messages, request: play.api.mvc.RequestHeader)
 
-@main("Add Book") {
-  <h1>Add a new book</h1>
-  @helper.form(action = routes.BookController.save) {
-    @helper.CSRF.formField
-    @helper.inputText(bookForm("title"), Symbol("_label") -> "Title")
-    @helper.inputText(bookForm("author"), Symbol("_label") -> "Author")
-    @helper.textarea(bookForm("description"), Symbol("_label") -> "Description")
-    @helper.inputText(bookForm("metadata.subtitle"), Symbol("_label") -> "Subtitle")
-    @helper.inputText(bookForm("metadata.isbn10"), Symbol("_label") -> "ISBN-10")
-    @helper.inputText(bookForm("metadata.isbn13"), Symbol("_label") -> "ISBN-13")
-    @helper.inputText(bookForm("metadata.issn"), Symbol("_label") -> "ISSN")
-    @helper.inputText(bookForm("metadata.publisher"), Symbol("_label") -> "Publisher")
-    @helper.inputText(bookForm("metadata.publicationYear"), Symbol("_label") -> "Publication Year")
-    @helper.inputText(bookForm("metadata.publicationPlace"), Symbol("_label") -> "Publication Place")
-    @helper.inputText(bookForm("metadata.edition"), Symbol("_label") -> "Edition")
-    @helper.inputText(bookForm("metadata.seriesTitle"), Symbol("_label") -> "Series Title")
-    @helper.inputText(bookForm("metadata.seriesNumber"), Symbol("_label") -> "Series Number")
-    @helper.inputText(bookForm("metadata.language"), Symbol("_label") -> "Language")
-    @helper.inputText(bookForm("metadata.originalLanguage"), Symbol("_label") -> "Original Language")
-    @helper.inputText(bookForm("metadata.subjects"), Symbol("_label") -> "Subjects")
-    @helper.inputText(bookForm("metadata.keywords"), Symbol("_label") -> "Keywords")
-    @helper.textarea(bookForm("metadata.summary"), Symbol("_label") -> "Summary")
-    @helper.inputText(bookForm("metadata.classification"), Symbol("_label") -> "Classification")
-    @helper.inputText(bookForm("metadata.callNumberBase"), Symbol("_label") -> "Call Number Base")
-    @helper.inputText(bookForm("metadata.format"), Symbol("_label") -> "Format")
-    @helper.inputText(bookForm("metadata.pages"), Symbol("_label") -> "Pages")
-    @helper.inputText(bookForm("metadata.dimensions"), Symbol("_label") -> "Dimensions")
-    @helper.inputText(bookForm("metadata.coverImageUrl"), Symbol("_label") -> "Cover Image URL")
-    @helper.inputText(bookForm("metadata.thumbnailUrl"), Symbol("_label") -> "Thumbnail URL")
-    <button type="submit">Save</button>
-  }
+@main("Post a Book", trendingBooks = trendingBooks) {
+  <div class="mb-4">
+      <a href="@routes.BookController.list" class="btn btn-sm btn-secondary">&larr; Back to Books</a>
+  </div>
+
+  <div class="card" style="margin: 0 auto;">
+    <div class="card-header">
+        <h1 class="card-title" style="font-size: 1.75rem;">Post a New Book</h1>
+        <p style="color: var(--text-secondary);">Fill in the details to add a book to the library.</p>
+    </div>
+    
+    <div class="card-body">
+      @helper.form(action = routes.BookController.save) {
+        @helper.CSRF.formField
+
+        <div class="form-grid-2">
+            <!-- Full Width Fields -->
+            <div class="form-group col-span-2">
+                <label for="title">Title</label>
+                <input type="text" name="title" id="title" value="@bookForm("title").value" required>
+            </div>
+            
+            <div class="form-group col-span-2">
+                <label for="subtitle">Subtitle (Optional)</label>
+                <input type="text" name="metadata.subtitle" id="subtitle" value="@bookForm("metadata.subtitle").value">
+            </div>
+
+            <div class="form-group">
+                <label for="author">Author</label>
+                <input type="text" name="author" id="author" value="@bookForm("author").value" required>
+            </div>
+            
+             <div class="form-group">
+                <label for="publisher">Publisher</label>
+                <input type="text" name="metadata.publisher" id="publisher" value="@bookForm("metadata.publisher").value">
+            </div>
+
+            <div class="form-group col-span-2">
+                <label for="description">Description</label>
+                <textarea name="description" id="description" rows="4">@bookForm("description").value</textarea>
+            </div>
+
+             <div class="form-group col-span-2">
+                <label for="summary">Summary</label>
+                <textarea name="metadata.summary" id="summary" rows="3">@bookForm("metadata.summary").value</textarea>
+            </div>
+            
+            <!-- Metadata Grid -->
+            <div class="form-group">
+                <label for="isbn10">ISBN-10</label>
+                <input type="text" name="metadata.isbn10" id="isbn10" value="@bookForm("metadata.isbn10").value">
+            </div>
+            
+            <div class="form-group">
+                <label for="isbn13">ISBN-13</label>
+                <input type="text" name="metadata.isbn13" id="isbn13" value="@bookForm("metadata.isbn13").value">
+            </div>
+
+            <div class="form-group">
+                <label for="publicationYear">Publication Year</label>
+                <input type="number" name="metadata.publicationYear" id="publicationYear" value="@bookForm("metadata.publicationYear").value">
+            </div>
+            
+            <div class="form-group">
+                <label for="publicationPlace">Publication Place</label>
+                <input type="text" name="metadata.publicationPlace" id="publicationPlace" value="@bookForm("metadata.publicationPlace").value">
+            </div>
+
+            <div class="form-group">
+                <label for="edition">Edition</label>
+                <input type="text" name="metadata.edition" id="edition" value="@bookForm("metadata.edition").value">
+            </div>
+
+            <div class="form-group">
+                <label for="pages">Pages</label>
+                <input type="number" name="metadata.pages" id="pages" value="@bookForm("metadata.pages").value">
+            </div>
+
+             <div class="form-group">
+                <label for="language">Language</label>
+                <input type="text" name="metadata.language" id="language" value="@bookForm("metadata.language").value">
+            </div>
+            
+            <div class="form-group">
+                <label for="originalLanguage">Original Language</label>
+                <input type="text" name="metadata.originalLanguage" id="originalLanguage" value="@bookForm("metadata.originalLanguage").value">
+            </div>
+            
+             <div class="form-group">
+                <label for="format">Format</label>
+                <input type="text" name="metadata.format" id="format" value="@bookForm("metadata.format").value">
+            </div>
+
+             <div class="form-group">
+                <label for="dimensions">Dimensions</label>
+                <input type="text" name="metadata.dimensions" id="dimensions" value="@bookForm("metadata.dimensions").value">
+            </div>
+            
+            <div class="form-group col-span-2">
+                <label for="subjects">Subjects (comma separated)</label>
+                <input type="text" name="metadata.subjects" id="subjects" value="@bookForm("metadata.subjects").value">
+            </div>
+            
+            <div class="form-group col-span-2">
+                <label for="keywords">Keywords (comma separated)</label>
+                <input type="text" name="metadata.keywords" id="keywords" value="@bookForm("metadata.keywords").value">
+            </div>
+
+            <div class="form-group col-span-2">
+                <label for="coverImageUrl">Cover Image URL</label>
+                <input type="text" name="metadata.coverImageUrl" id="coverImageUrl" value="@bookForm("metadata.coverImageUrl").value">
+            </div>
+        </div>
+
+        <div class="mt-4" style="text-align: right;">
+             <a href="@routes.BookController.list" class="btn btn-secondary" style="margin-right: 0.5rem;">Cancel</a>
+             <button type="submit" class="btn btn-primary">Save Book</button>
+        </div>
+      }
+    </div>
+  </div>
 }

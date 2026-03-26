@@ -36,3 +36,16 @@ class LibraryPoliciesTable(tag: Tag) extends Table[LibraryPolicy](tag, "LIBRARY_
 
   override def * : ProvenShape[LibraryPolicy] = (id, ownerId, defaultLoanDays, maxExtensions, dailyOverdueFee).mapTo[LibraryPolicy]
 }
+
+case class Follow(followerId: Long, followedId: Long)
+
+class FollowsTable(tag: Tag) extends Table[Follow](tag, "FOLLOWS") {
+  def followerId: Rep[Long] = column[Long]("FOLLOWER_ID")
+  def followedId: Rep[Long] = column[Long]("FOLLOWED_ID")
+
+  def pk = primaryKey("PK_FOLLOWS", (followerId, followedId))
+  def follower = foreignKey("FK_FOLLOW_FOLLOWER", followerId, TableQuery[UsersTable])(_.id)
+  def followed = foreignKey("FK_FOLLOW_FOLLOWED", followedId, TableQuery[UsersTable])(_.id)
+
+  override def * : ProvenShape[Follow] = (followerId, followedId).mapTo[Follow]
+}

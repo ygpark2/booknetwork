@@ -21,9 +21,87 @@ class BookRepository @Inject()(config: Configuration)(implicit ec: ExecutionCont
   private val bookItems = TableQuery[BookItemsTable]
   private val loans = TableQuery[LoansTable]
   private val libraryPolicies = TableQuery[LibraryPoliciesTable]
-  database.run((books.schema ++ bookItems.schema ++ loans.schema ++ libraryPolicies.schema).createIfNotExists)
+  private val likes = TableQuery[BookLikesTable]
+  private val reposts = TableQuery[BookRepostsTable]
+  private val bookmarks = TableQuery[BookBookmarksTable]
+  private val comments = TableQuery[BookCommentsTable]
+
+  val schemaCreation: Future[Unit] = database.run((books.schema ++ bookItems.schema ++ loans.schema ++ libraryPolicies.schema ++ likes.schema ++ reposts.schema ++ bookmarks.schema ++ comments.schema).createIfNotExists)
 
   def list(): Future[Seq[Book]] = database.run(books.result)
+
+  def trending(limit: Int = 3): Future[Seq[Book]] = {
+    val query = books.sortBy { book =>
+      likes.filter(_.bookId === book.id).length.desc
+    }.take(limit)
+    database.run(query.result)
+  }
+
+  // Interaction Counts
+  def getInteractionStats(bookId: Long): Future[(Int, Int, Int, Int)] = {
+    val lF = database.run(likes.filter(_.bookId === bookId).length.result)
+    val rF = database.run(reposts.filter(_.bookId === bookId).length.result)
+    val bF = database.run(bookmarks.filter(_.bookId === bookId).length.result)
+    val cF = database.run(comments.filter(_.bookId === bookId).length.result)
+    for {
+      l <- lF; r <- rF; b <- bF; c <- cF
+    } yield (l, r, b, c)
+  }
+
+  def getUserInteractions(bookId: Long, userId: Long): Future[(Boolean, Boolean, Boolean)] = {
+    val lF = database.run(likes.filter(x => x.bookId === bookId && x.userId === userId).exists.result)
+    val rF = database.run(reposts.filter(x => x.bookId === bookId && x.userId === userId).exists.result)
+    val bF = database.run(bookmarks.filter(x => x.bookId === bookId && x.userId === userId).exists.result)
+    for {
+      l <- lF; r <- rF; b <- bF
+    } yield (l, r, b)
+  }
+
+  // Toggles
+  def toggleLike(userId: Long, bookId: Long): Future[Boolean] = {
+    val action = likes.filter(x => x.userId === userId && x.bookId === bookId).result.headOption.flatMap {
+      case Some(_) => likes.filter(x => x.userId === userId && x.bookId === bookId).delete.map(_ => false)
+      case None => (likes += BookLike(userId, bookId)).map(_ => true)
+    }
+    database.run(action.transactionally)
+  }
+
+  def toggleRepost(userId: Long, bookId: Long): Future[Boolean] = {
+    val action = reposts.filter(x => x.userId === userId && x.bookId === bookId).result.headOption.flatMap {
+      case Some(_) => reposts.filter(x => x.userId === userId && x.bookId === bookId).delete.map(_ => false)
+      case None => (reposts += BookRepost(userId, bookId)).map(_ => true)
+    }
+    database.run(action.transactionally)
+  }
+
+  def toggleBookmark(userId: Long, bookId: Long): Future[Boolean] = {
+    val action = bookmarks.filter(x => x.userId === userId && x.bookId === bookId).result.headOption.flatMap {
+      case Some(_) => bookmarks.filter(x => x.userId === userId && x.bookId === bookId).delete.map(_ => false)
+      case None => (bookmarks += BookBookmark(userId, bookId)).map(_ => true)
+    }
+    database.run(action.transactionally)
+  }
+
+  // Comments
+  def addComment(userId: Long, bookId: Long, content: String, parentId: Option[Long] = None): Future[Long] = {
+    database.run((comments returning comments.map(_.id)) += BookComment(userId = userId, bookId = bookId, content = content, parentId = parentId))
+  }
+
+  def listComments(bookId: Long): Future[Seq[(BookComment, User)]] = {
+    val query = for {
+      c <- comments.filter(_.bookId === bookId)
+      u <- TableQuery[models.UsersTable] if c.userId === u.id
+    } yield (c, u)
+    database.run(query.sortBy(_._1.createdAt.desc).result)
+  }
+
+  def listBookmarks(userId: Long): Future[Seq[Book]] = {
+    val query = for {
+      b <- bookmarks.filter(_.userId === userId)
+      book <- books if b.bookId === book.id
+    } yield book
+    database.run(query.result)
+  }
 
   def insert(book: Book): Future[Long] = database.run((books returning books.map(_.id)) += book)
 

@@ -11,7 +11,7 @@ import javax.inject._
 import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton
-class PolicyController @Inject()(cc: MessagesControllerComponents, userRepository: UserRepository)(implicit ec: ExecutionContext)
+class PolicyController @Inject()(cc: MessagesControllerComponents, userRepository: UserRepository, bookRepository: repositories.BookRepository)(implicit ec: ExecutionContext)
   extends MessagesAbstractController(cc) with I18nSupport {
 
   private val policyForm: Form[PolicyForm] = Form(
@@ -25,7 +25,7 @@ class PolicyController @Inject()(cc: MessagesControllerComponents, userRepositor
   private def requireAuth[A](block: => Future[play.api.mvc.Result])(implicit request: play.api.mvc.Request[A]): Future[play.api.mvc.Result] = {
     request.session.get("userEmail") match {
       case Some(_) => block
-      case None => Future.successful(Unauthorized("You must be authenticated to access this page."))
+      case None => Future.successful(Redirect(routes.AuthController.login).flashing("error" -> "You must be authenticated to access this page."))
     }
   }
 
@@ -35,18 +35,25 @@ class PolicyController @Inject()(cc: MessagesControllerComponents, userRepositor
         case Some(email) =>
           userRepository.findByEmail(email).flatMap {
             case Some(user) =>
-              userRepository.findPolicyByOwner(user.id).map {
-                case Some(policy) =>
-                  val filled = policyForm.fill(PolicyForm(policy.defaultLoanDays, policy.maxExtensions, policy.dailyOverdueFee))
-                  Ok(views.html.policies.edit(filled))
-                case None =>
-                  Ok(views.html.policies.edit(policyForm))
+              val policyF = userRepository.findPolicyByOwner(user.id)
+              val trendingF = bookRepository.trending()
+              for {
+                policyOpt <- policyF
+                trendingBooks <- trendingF
+              } yield {
+                policyOpt match {
+                  case Some(policy) =>
+                    val filled = policyForm.fill(PolicyForm(policy.defaultLoanDays, policy.maxExtensions, policy.dailyOverdueFee))
+                    Ok(views.html.policies.edit(filled, trendingBooks = trendingBooks))
+                  case None =>
+                    Ok(views.html.policies.edit(policyForm, trendingBooks = trendingBooks))
+                }
               }
             case None =>
-              Future.successful(Unauthorized("User not found."))
+              Future.successful(Redirect(routes.AuthController.login).withNewSession.flashing("error" -> "User session invalid, please login again."))
           }
         case None =>
-          Future.successful(Unauthorized("You must be authenticated to access this page."))
+          Future.successful(Redirect(routes.AuthController.login).flashing("error" -> "You must be authenticated to access this page."))
       }
     }
   }
@@ -54,7 +61,9 @@ class PolicyController @Inject()(cc: MessagesControllerComponents, userRepositor
   def update: Action[AnyContent] = Action.async { implicit request =>
     requireAuth {
       policyForm.bindFromRequest().fold(
-        formWithErrors => Future.successful(BadRequest(views.html.policies.edit(formWithErrors))),
+        formWithErrors => bookRepository.trending().map { trendingBooks =>
+          BadRequest(views.html.policies.edit(formWithErrors, trendingBooks = trendingBooks))
+        },
         data =>
           request.session.get("userEmail") match {
             case Some(email) =>
@@ -64,10 +73,10 @@ class PolicyController @Inject()(cc: MessagesControllerComponents, userRepositor
                     Redirect(routes.PolicyController.edit).flashing("success" -> "Policy updated")
                   }
                 case None =>
-                  Future.successful(Unauthorized("User not found."))
+                  Future.successful(Redirect(routes.AuthController.login).withNewSession.flashing("error" -> "User session invalid, please login again."))
               }
             case None =>
-              Future.successful(Unauthorized("You must be authenticated to access this page."))
+              Future.successful(Redirect(routes.AuthController.login).flashing("error" -> "You must be authenticated to access this page."))
           }
       )
     }

@@ -118,6 +118,18 @@ case class Book(
   metadata: BookMetadata = BookMetadata()
 )
 
+case class BookViewData(
+  book: Book,
+  likeCount: Int,
+  repostCount: Int,
+  bookmarkCount: Int,
+  commentCount: Int,
+  isLiked: Boolean,
+  isReposted: Boolean,
+  isBookmarked: Boolean,
+  isOwner: Boolean
+)
+
 class BooksTable(tag: Tag) extends Table[Book](tag, "BOOKS") {
   def id: Rep[Long] = column[Long]("ID", O.PrimaryKey, O.AutoInc)
   def ownerId: Rep[Long] = column[Long]("OWNER_ID")
@@ -183,4 +195,55 @@ class BooksTable(tag: Tag) extends Table[Book](tag, "BOOKS") {
     Some((book.id, book.ownerId, book.title, book.author, book.description, book.metadata))
 
   override def * : ProvenShape[Book] = (id, ownerId, title, author, description, metadata) <> (bookTupled, bookUntupled)
+}
+
+case class BookLike(userId: Long, bookId: Long)
+class BookLikesTable(tag: Tag) extends Table[BookLike](tag, "BOOK_LIKES") {
+  def userId = column[Long]("USER_ID")
+  def bookId = column[Long]("BOOK_ID")
+  def pk = primaryKey("PK_BOOK_LIKES", (userId, bookId))
+  def user = foreignKey("FK_LIKE_USER", userId, TableQuery[UsersTable])(_.id)
+  def book = foreignKey("FK_LIKE_BOOK", bookId, TableQuery[BooksTable])(_.id)
+  override def * = (userId, bookId).mapTo[BookLike]
+}
+
+case class BookRepost(userId: Long, bookId: Long)
+class BookRepostsTable(tag: Tag) extends Table[BookRepost](tag, "BOOK_REPOSTS") {
+  def userId = column[Long]("USER_ID")
+  def bookId = column[Long]("BOOK_ID")
+  def pk = primaryKey("PK_BOOK_REPOSTS", (userId, bookId))
+  def user = foreignKey("FK_REPOST_USER", userId, TableQuery[UsersTable])(_.id)
+  def book = foreignKey("FK_REPOST_BOOK", bookId, TableQuery[BooksTable])(_.id)
+  override def * = (userId, bookId).mapTo[BookRepost]
+}
+
+case class BookBookmark(userId: Long, bookId: Long)
+class BookBookmarksTable(tag: Tag) extends Table[BookBookmark](tag, "BOOK_BOOKMARKS") {
+  def userId = column[Long]("USER_ID")
+  def bookId = column[Long]("BOOK_ID")
+  def pk = primaryKey("PK_BOOK_BOOKMARKS", (userId, bookId))
+  def user = foreignKey("FK_BOOKMARK_USER", userId, TableQuery[UsersTable])(_.id)
+  def book = foreignKey("FK_BOOKMARK_BOOK", bookId, TableQuery[BooksTable])(_.id)
+  override def * = (userId, bookId).mapTo[BookBookmark]
+}
+
+case class BookComment(id: Long = 0L, userId: Long, bookId: Long, parentId: Option[Long] = None, content: String, createdAt: java.time.LocalDateTime = java.time.LocalDateTime.now())
+class BookCommentsTable(tag: Tag) extends Table[BookComment](tag, "BOOK_COMMENTS") {
+  def id = column[Long]("ID", O.PrimaryKey, O.AutoInc)
+  def userId = column[Long]("USER_ID")
+  def bookId = column[Long]("BOOK_ID")
+  def parentId = column[Option[Long]]("PARENT_ID")
+  def content = column[String]("CONTENT")
+  def createdAt = column[java.time.LocalDateTime]("CREATED_AT")
+  def user = foreignKey("FK_COMMENT_USER", userId, TableQuery[UsersTable])(_.id)
+  def book = foreignKey("FK_COMMENT_BOOK", bookId, TableQuery[BooksTable])(_.id)
+  def parent = foreignKey("FK_COMMENT_PARENT", parentId, TableQuery[BookCommentsTable])(_.id.?)
+
+  private def commentTupled(tuple: (Long, Long, Long, Option[Long], String, java.time.LocalDateTime)): BookComment =
+    BookComment(tuple._1, tuple._2, tuple._3, tuple._4, tuple._5, tuple._6)
+
+  private def commentUntupled(c: BookComment): Option[(Long, Long, Long, Option[Long], String, java.time.LocalDateTime)] =
+    Some((c.id, c.userId, c.bookId, c.parentId, c.content, c.createdAt))
+
+  override def * = (id, userId, bookId, parentId, content, createdAt) <> (commentTupled, commentUntupled)
 }

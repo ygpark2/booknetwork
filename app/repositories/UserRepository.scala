@@ -19,7 +19,8 @@ class UserRepository @Inject()(config: Configuration)(implicit ec: ExecutionCont
 
   private val users = TableQuery[models.UsersTable]
   private val libraryPolicies = TableQuery[models.LibraryPoliciesTable]
-  database.run((users.schema ++ libraryPolicies.schema).createIfNotExists)
+  private val follows = TableQuery[models.FollowsTable]
+  val schemaCreation: Future[Unit] = database.run((users.schema ++ libraryPolicies.schema ++ follows.schema).createIfNotExists)
 
   def findByEmail(email: String): Future[Option[User]] =
     database.run(users.filter(_.email === email).result.headOption)
@@ -50,6 +51,28 @@ class UserRepository @Inject()(config: Configuration)(implicit ec: ExecutionCont
         (libraryPolicies returning libraryPolicies.map(_.id)) += policy
     }
     database.run(action.transactionally)
+  }
+
+  def listRecommendUsers(excludeEmail: Option[String], limit: Int = 3): Future[Seq[User]] = {
+    val query = excludeEmail match {
+      case Some(email) => users.filter(_.email =!= email).take(limit)
+      case None => users.take(limit)
+    }
+    database.run(query.result)
+  }
+
+  def follow(followerId: Long, followedId: Long): Future[Int] = {
+    val action = follows += models.Follow(followerId, followedId)
+    database.run(action)
+  }
+
+  def unfollow(followerId: Long, followedId: Long): Future[Int] = {
+    val action = follows.filter(f => f.followerId === followerId && f.followedId === followedId).delete
+    database.run(action)
+  }
+
+  def isFollowing(followerId: Long, followedId: Long): Future[Boolean] = {
+    database.run(follows.filter(f => f.followerId === followerId && f.followedId === followedId).exists.result)
   }
 
   def count(): Future[Int] =

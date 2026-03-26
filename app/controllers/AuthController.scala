@@ -14,7 +14,7 @@ import javax.inject._
 import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton
-class AuthController @Inject()(cc: MessagesControllerComponents, userRepository: UserRepository)(implicit ec: ExecutionContext)
+class AuthController @Inject()(cc: MessagesControllerComponents, userRepository: UserRepository, bookRepository: repositories.BookRepository)(implicit ec: ExecutionContext)
   extends MessagesAbstractController(cc) with I18nSupport {
 
   private val passwordHasher = new BCryptSha256PasswordHasher()
@@ -35,18 +35,24 @@ class AuthController @Inject()(cc: MessagesControllerComponents, userRepository:
     )(LoginForm.tupled)(LoginForm.unapply)
   )
 
-  def register: Action[AnyContent] = Action { implicit request =>
-    Ok(views.html.auth.register(registerForm))
+  def register: Action[AnyContent] = Action.async { implicit request =>
+    bookRepository.trending().map { trendingBooks =>
+      Ok(views.html.auth.register(registerForm, trendingBooks = trendingBooks))
+    }
   }
 
   def registerSubmit: Action[AnyContent] = Action.async { implicit request =>
     registerForm.bindFromRequest().fold(
-      formWithErrors => Future.successful(BadRequest(views.html.auth.register(formWithErrors))),
+      formWithErrors => bookRepository.trending().map { trendingBooks =>
+        BadRequest(views.html.auth.register(formWithErrors, trendingBooks = trendingBooks))
+      },
       data => {
         userRepository.findByEmail(data.email).flatMap {
           case Some(_) =>
             val formWithError = registerForm.fill(data).withGlobalError("Email already exists")
-            Future.successful(BadRequest(views.html.auth.register(formWithError)))
+            bookRepository.trending().map { trendingBooks =>
+              BadRequest(views.html.auth.register(formWithError, trendingBooks = trendingBooks))
+            }
           case None =>
             val passwordInfo = passwordHasher.hash(data.password)
             val user = User(
@@ -72,15 +78,19 @@ class AuthController @Inject()(cc: MessagesControllerComponents, userRepository:
     )
   }
 
-  def login: Action[AnyContent] = Action { implicit request =>
-    Ok(views.html.auth.login(loginForm))
+  def login: Action[AnyContent] = Action.async { implicit request =>
+    bookRepository.trending().map { trendingBooks =>
+      Ok(views.html.auth.login(loginForm, trendingBooks = trendingBooks))
+    }
   }
 
   def loginSubmit: Action[AnyContent] = Action.async { implicit request =>
     loginForm.bindFromRequest().fold(
-      formWithErrors => Future.successful(BadRequest(views.html.auth.login(formWithErrors))),
+      formWithErrors => bookRepository.trending().map { trendingBooks =>
+        BadRequest(views.html.auth.login(formWithErrors, trendingBooks = trendingBooks))
+      },
       data => {
-        userRepository.findByEmail(data.email).map {
+        userRepository.findByEmail(data.email).flatMap {
           case Some(user) =>
             val passwordInfo = PasswordInfo(user.passwordHasher, user.passwordHash)
             val matches = user.passwordHasher match {
@@ -93,15 +103,19 @@ class AuthController @Inject()(cc: MessagesControllerComponents, userRepository:
             }
 
             if (matches) {
-              Redirect(routes.BookController.list)
-                .withSession(request.session + ("userEmail" -> user.email))
+              Future.successful(Redirect(routes.BookController.list)
+                .withSession(request.session + ("userEmail" -> user.email)))
             } else {
               val formWithError = loginForm.fill(data).withGlobalError("Invalid email or password")
-              BadRequest(views.html.auth.login(formWithError))
+              bookRepository.trending().map { trendingBooks =>
+                BadRequest(views.html.auth.login(formWithError, trendingBooks = trendingBooks))
+              }
             }
           case None =>
             val formWithError = loginForm.fill(data).withGlobalError("Invalid email or password")
-            BadRequest(views.html.auth.login(formWithError))
+            bookRepository.trending().map { trendingBooks =>
+              BadRequest(views.html.auth.login(formWithError, trendingBooks = trendingBooks))
+            }
         }
       }
     )
