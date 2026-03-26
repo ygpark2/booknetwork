@@ -1,33 +1,80 @@
-@(loanForm: play.api.data.Form[forms.LoanForm], activeLoans: Seq[models.Loan], ownerItems: Seq[models.BookItem])(implicit messages: play.api.i18n.Messages, request: play.api.mvc.RequestHeader)
+@(loanForm: play.api.data.Form[forms.LoanForm], activeLoans: Seq[models.Loan], ownerItems: Seq[models.BookItem], trendingBooks: Seq[models.Book] = Nil)(implicit messages: play.api.i18n.Messages, request: play.api.mvc.RequestHeader)
 
-@main("Loans") {
-  <h1>Loans</h1>
+@main("Loans Dashboard", trendingBooks = trendingBooks) {
+  <header class="detail-header">
+      <h2 style="font-size: 1.25rem; font-weight: 700; margin: 0;">Loans</h2>
+  </header>
 
-  <h3>Checkout a book item</h3>
-  @helper.form(action = routes.LoanController.checkout) {
-    @helper.CSRF.formField
-    @helper.inputText(loanForm("bookItemId"), Symbol("_label") -> "Book Item ID")
-    @helper.inputText(loanForm("borrowerEmail"), Symbol("_label") -> "Borrower Email")
-    <button type="submit">Checkout</button>
-  }
+  <div style="padding: 1rem;">
+    <p style="color: var(--text-secondary); margin-bottom: 1rem;">Manage active loans and inventory items</p>
 
-  <h3>Active Loans</h3>
-  <ul>
-    @for(loan <- activeLoans) {
-      <li>
-        Loan #@loan.id | Item: @loan.bookItemId | Borrower: @loan.borrowerId | Due: @loan.dueAt
-        @helper.form(action = routes.LoanController.returnLoan(loan.id)) {
-          @helper.CSRF.formField
-          <button type="submit">Return</button>
-        }
-      </li>
-    }
-  </ul>
+  <div class="card mb-4">
+    <div class="card-header">
+      <h3 class="card-title">Checkout Item</h3>
+    </div>
+    <div class="card-body">
+      @helper.form(action = routes.LoanController.checkout) {
+        @helper.CSRF.formField
+        <div class="flex gap-2 items-center">
+            <div style="flex: 1;">
+                <input type="text" name="bookItemId" placeholder="Book Item ID" value="@loanForm("bookItemId").value" required>
+            </div>
+            <div style="flex: 1;">
+                <input type="email" name="borrowerEmail" placeholder="Borrower Email" value="@loanForm("borrowerEmail").value" required>
+            </div>
+            <button type="submit" class="btn btn-primary">Process Checkout</button>
+        </div>
+      }
+    </div>
+  </div>
 
-  <h3>My Items</h3>
-  <ul>
-    @for(item <- ownerItems) {
-      <li>Item #@item.id | Barcode: @item.barcode | Status: @item.status</li>
-    }
-  </ul>
+  <div class="grid-cols-2">
+      <div class="card">
+        <div class="card-header">
+            <h3 class="card-title">Active Loans</h3>
+        </div>
+        <div class="card-body">
+            @if(activeLoans.isEmpty) {
+                <p style="color: var(--text-secondary);">No active loans.</p>
+            } else {
+                <ul style="list-style: none;">
+                    @for(loan <- activeLoans) {
+                        <li style="border-bottom: 1px solid var(--border-color); padding: 1rem 0; display: flex; justify-content: space-between; align-items: center;">
+                            <div>
+                                <strong style="display: block; margin-bottom: 0.25rem;">Loan #@loan.id</strong>
+                                <span style="font-size: 0.85rem; color: var(--text-secondary);">Item: @loan.bookItemId | Due: @loan.dueAt</span>
+                            </div>
+                            @helper.form(action = routes.LoanController.returnLoan(loan.id)) {
+                                @helper.CSRF.formField
+                                <button type="submit" class="btn btn-sm btn-secondary">Return</button>
+                            }
+                        </li>
+                    }
+                </ul>
+            }
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+            <h3 class="card-title">My Inventory</h3>
+        </div>
+        <div class="card-body">
+            @if(ownerItems.isEmpty) {
+                <p style="color: var(--text-secondary);">No items in inventory.</p>
+            } else {
+                <ul style="list-style: none;">
+                    @for(item <- ownerItems) {
+                        <li style="border-bottom: 1px solid var(--border-color); padding: 1rem 0;">
+                            <strong style="display: block; margin-bottom: 0.25rem;">Item #@item.id</strong>
+                            <span style="font-size: 0.85rem; color: var(--text-secondary);">Barcode: @item.barcode</span>
+                            <span class="badge @if(item.status == "Available") { badge-green } else { badge-blue }" style="margin-left: 0.5rem;">@item.status</span>
+                        </li>
+                    }
+                </ul>
+            }
+        </div>
+      </div>
+  </div>
+  </div>
 }

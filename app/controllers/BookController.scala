@@ -124,22 +124,76 @@ class BookController @Inject()(cc: MessagesControllerComponents, bookRepository:
 
 
   def list: Action[AnyContent] = Action.async { implicit request =>
-    bookRepository.list().map { books =>
-      implicit val messages = request.messages
-      Ok(views.html.books.list(books))
+    val userEmailOpt = request.session.get("userEmail")
+    val userFuture = userEmailOpt match {
+      case Some(email) => userRepository.findByEmail(email)
+      case None => Future.successful(None)
     }
+
+    userFuture.flatMap { userOpt =>
+      bookRepository.list().flatMap { books =>
+        bookRepository.trending().flatMap { trendingBooks =>
+          fetchViewData(books, userOpt).map { booksWithData =>
+            implicit val messages = request.messages
+            Ok(views.html.books.list(booksWithData, trendingBooks = trendingBooks))
+          }
+        }
+      }
+    }
+  }
+
+  def bookmarkList: Action[AnyContent] = Action.async { implicit request =>
+    requireAuth {
+      val email = request.session.get("userEmail").get
+      userRepository.findByEmail(email).flatMap {
+        case Some(user) =>
+          bookRepository.listBookmarks(user.id).flatMap { books =>
+            bookRepository.trending().flatMap { trendingBooks =>
+              fetchViewData(books, Some(user)).map { booksWithData =>
+                implicit val messages = request.messages
+                Ok(views.html.books.list(booksWithData, "Bookmarks", trendingBooks = trendingBooks))
+              }
+            }
+          }
+        case None => Future.successful(Redirect(routes.AuthController.login))
+      }
+    }
+  }
+
+  private def fetchViewData(books: Seq[models.Book], userOpt: Option[models.User])(implicit request: play.api.mvc.RequestHeader): Future[Seq[models.BookViewData]] = {
+    Future.sequence(books.map { book =>
+      for {
+        stats <- bookRepository.getInteractionStats(book.id)
+        userInteractions <- userOpt match {
+          case Some(user) => bookRepository.getUserInteractions(book.id, user.id)
+          case None => Future.successful((false, false, false))
+        }
+      } yield models.BookViewData(
+        book = book,
+        likeCount = stats._1,
+        repostCount = stats._2,
+        bookmarkCount = stats._3,
+        commentCount = stats._4,
+        isLiked = userInteractions._1,
+        isReposted = userInteractions._2,
+        isBookmarked = userInteractions._3,
+        isOwner = userOpt.exists(_.id == book.ownerId)
+      )
+    })
   }
 
   private def requireAuth[A](block: => Future[play.api.mvc.Result])(implicit request: play.api.mvc.Request[A]): Future[play.api.mvc.Result] = {
     request.session.get("userEmail") match {
       case Some(_) => block
-      case None => Future.successful(Unauthorized("You must be authenticated to access this page."))
+      case None => Future.successful(Redirect(routes.AuthController.login).flashing("error" -> "You must be authenticated to access this page."))
     }
   }
 
   def create: Action[AnyContent] = Action.async { implicit request =>
     requireAuth {
-      Future.successful(Ok(views.html.books.create(bookForm)))
+      bookRepository.trending().map { trendingBooks =>
+        Ok(views.html.books.create(bookForm, trendingBooks = trendingBooks))
+      }
     }
   }
 
@@ -152,14 +206,52 @@ class BookController @Inject()(cc: MessagesControllerComponents, bookRepository:
       ({ form => Some((form._1, form._2, form._3)) })
   )
 
-  def detail(id: Long): Action[AnyContent] = Action.async { implicit request =>
+  private def getBookDetailData(id: Long, userOpt: Option[models.User])(implicit request: play.api.mvc.RequestHeader): Future[Option[(models.BookViewData, Seq[models.BookItem], Seq[(models.BookComment, models.User)])]] = {
     bookRepository.findById(id).flatMap {
       case Some(book) =>
-        bookRepository.findItemsByBookId(id).map { items =>
-          Ok(views.html.books.detail(book, items, itemForm))
-        }
-      case None =>
-        Future.successful(NotFound("Book not found"))
+        for {
+          items <- bookRepository.findItemsByBookId(id)
+          stats <- bookRepository.getInteractionStats(book.id)
+          userInteractions <- userOpt match {
+            case Some(user) => bookRepository.getUserInteractions(book.id, user.id)
+            case None => Future.successful((false, false, false))
+          }
+          comments <- bookRepository.listComments(book.id)
+        } yield Some((
+          models.BookViewData(
+            book = book,
+            likeCount = stats._1,
+            repostCount = stats._2,
+            bookmarkCount = stats._3,
+            commentCount = stats._4,
+            isLiked = userInteractions._1,
+            isReposted = userInteractions._2,
+            isBookmarked = userInteractions._3,
+            isOwner = userOpt.exists(_.id == book.ownerId)
+          ),
+          items,
+          comments
+        ))
+      case None => Future.successful(None)
+    }
+  }
+
+  def detail(id: Long): Action[AnyContent] = Action.async { implicit request =>
+    val userEmailOpt = request.session.get("userEmail")
+    val userFuture = userEmailOpt match {
+      case Some(email) => userRepository.findByEmail(email)
+      case None => Future.successful(None)
+    }
+
+    userFuture.flatMap { userOpt =>
+      getBookDetailData(id, userOpt).flatMap {
+        case Some((viewData, items, comments)) =>
+          bookRepository.trending().map { trendingBooks =>
+            Ok(views.html.books.detail(viewData, items, itemForm, comments, trendingBooks = trendingBooks))
+          }
+        case None =>
+          Future.successful(NotFound("Book not found"))
+      }
     }
   }
 
@@ -175,7 +267,9 @@ class BookController @Inject()(cc: MessagesControllerComponents, bookRepository:
               metadata = book.metadata
             )
           )
-          Future.successful(Ok(views.html.books.edit(id, filledForm)))
+          bookRepository.trending().map { trendingBooks =>
+            Ok(views.html.books.edit(id, filledForm, trendingBooks = trendingBooks))
+          }
         case None =>
           Future.successful(NotFound("Book not found"))
       }
@@ -185,7 +279,9 @@ class BookController @Inject()(cc: MessagesControllerComponents, bookRepository:
   def update(id: Long): Action[AnyContent] = Action.async { implicit request =>
     requireAuth {
       bookForm.bindFromRequest().fold(
-        formWithErrors => Future.successful(BadRequest(views.html.books.edit(id, formWithErrors))),
+        formWithErrors => bookRepository.trending().map { trendingBooks =>
+          BadRequest(views.html.books.edit(id, formWithErrors, trendingBooks = trendingBooks))
+        },
         data => {
           request.session.get("userEmail") match {
             case Some(email) =>
@@ -203,10 +299,10 @@ class BookController @Inject()(cc: MessagesControllerComponents, bookRepository:
                     Redirect(routes.BookController.detail(id)).flashing("success" -> "Book updated")
                   }
                 case None =>
-                  Future.successful(Unauthorized("User not found."))
+                  Future.successful(Redirect(routes.AuthController.login).withNewSession.flashing("error" -> "User session invalid, please login again."))
               }
             case None =>
-              Future.successful(Unauthorized("You must be authenticated to access this page."))
+              Future.successful(Redirect(routes.AuthController.login).flashing("error" -> "You must be authenticated to access this page."))
           }
         }
       )
@@ -216,15 +312,19 @@ class BookController @Inject()(cc: MessagesControllerComponents, bookRepository:
   def addItem(id: Long): Action[AnyContent] = Action.async { implicit request =>
     requireAuth {
       itemForm.bindFromRequest().fold(
-        formWithErrors =>
-          bookRepository.findById(id).flatMap {
-            case Some(book) =>
-              bookRepository.findItemsByBookId(id).map { items =>
-                BadRequest(views.html.books.detail(book, items, formWithErrors))
-              }
-            case None =>
-              Future.successful(NotFound("Book not found"))
-          },
+        formWithErrors => {
+          val email = request.session.get("userEmail").get
+          userRepository.findByEmail(email).flatMap { userOpt =>
+            getBookDetailData(id, userOpt).flatMap {
+              case Some((viewData, items, comments)) =>
+                bookRepository.trending().map { trendingBooks =>
+                  BadRequest(views.html.books.detail(viewData, items, formWithErrors, comments, trendingBooks = trendingBooks))
+                }
+              case None =>
+                Future.successful(NotFound("Book not found"))
+            }
+          }
+        },
         data =>
           bookRepository.addItem(id, data._1, data._2, data._3).map { _ =>
             Redirect(routes.BookController.detail(id)).flashing("success" -> "Item added")
@@ -236,7 +336,9 @@ class BookController @Inject()(cc: MessagesControllerComponents, bookRepository:
   def save: Action[AnyContent] = Action.async { implicit request =>
     requireAuth {
       bookForm.bindFromRequest().fold(
-        formWithErrors => Future.successful(BadRequest(views.html.books.create(formWithErrors))),
+        formWithErrors => bookRepository.trending().map { trendingBooks =>
+          BadRequest(views.html.books.create(formWithErrors, trendingBooks = trendingBooks))
+        },
         data => {
           request.session.get("userEmail") match {
             case Some(email) =>
@@ -257,10 +359,10 @@ class BookController @Inject()(cc: MessagesControllerComponents, bookRepository:
                     Redirect(routes.BookController.list).flashing("success" -> "Book added")
                   }
                 case None =>
-                  Future.successful(Unauthorized("User not found."))
+                  Future.successful(Redirect(routes.AuthController.login).withNewSession.flashing("error" -> "User session invalid, please login again."))
               }
             case None =>
-              Future.successful(Unauthorized("You must be authenticated to access this page."))
+              Future.successful(Redirect(routes.AuthController.login).flashing("error" -> "You must be authenticated to access this page."))
           }
         }
       )

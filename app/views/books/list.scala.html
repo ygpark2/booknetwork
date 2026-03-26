@@ -1,13 +1,112 @@
-@(books: Seq[models.Book])(implicit messages: play.api.i18n.Messages, request: play.api.mvc.RequestHeader)
+@(booksWithData: Seq[models.BookViewData], listTitle: String = "Home", trendingBooks: Seq[models.Book] = Nil)(implicit messages: play.api.i18n.Messages, request: play.api.mvc.RequestHeader)
 
-@main("Books") {
-  <h1>Books</h1>
-  <a href="@routes.BookController.create">Add a book</a>
-  <ul>
-    @for(book <- books) {
-      <li>
-        <a href="@routes.BookController.detail(book.id)">@book.title</a> by @book.author
-      </li>
+@main(listTitle, trendingBooks = trendingBooks) {
+    <!-- Sticky Header -->
+    <header class="detail-header">
+        <h2 style="font-size: 1.25rem; font-weight: 700; margin: 0;">@listTitle</h2>
+        <div style="margin-left: auto; display: flex; align-items: center; gap: 0.75rem;">
+            @request.session.get("userEmail").map { _ =>
+                <a href="@routes.BookController.create" class="btn btn-primary" style="padding: 0.35rem 0.75rem; font-size: 0.8rem; border-radius: 20px;">
+                    <i class="fa-solid fa-plus" style="margin-right: 0.25rem;"></i> Post Book
+                </a>
+            }
+        </div>
+    </header>
+
+    @for(data <- booksWithData) {
+        @defining(data.book) { book =>
+            <article class="feed-item">
+                <header class="feed-header">
+                    <div class="avatar">
+                        @book.author.headOption.getOrElse('?')
+                    </div>
+                    <div class="user-info">
+                        <span class="user-name">@book.author</span>
+                        <span class="user-handle">@@@book.author.replaceAll("\\s", "").toLowerCase</span>
+                    </div>
+                    <span class="timestamp">
+                       @{
+                           // Simulating random timestamps for demo as book model lacks created_at
+                           val r = new scala.util.Random(book.id.toInt)
+                           val days = r.nextInt(10) + 1
+                           s"${days}d"
+                       }
+                    </span>
+                    <div class="dropdown" style="margin-left: auto;">
+                        <button class="action-btn" id="dropdownMenuButton-@book.id" data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="fa-solid fa-ellipsis"></i>
+                        </button>
+                        @if(data.isOwner) {
+                            <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="dropdownMenuButton-@book.id" style="background-color: var(--card-bg); border: 1px solid var(--border-color);">
+                                <li><a class="dropdown-item" href="@routes.BookController.edit(book.id)" style="color: var(--text-primary);">Edit</a></li>
+                            </ul>
+                        } else {
+                            <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="dropdownMenuButton-@book.id" style="background-color: var(--card-bg); border: 1px solid var(--border-color);">
+                                <li><a class="dropdown-item" href="#" style="color: var(--text-primary);">Report</a></li>
+                            </ul>
+                        }
+                    </div>
+                </header>
+                
+                <div class="feed-content">
+                    <h3 style="font-size: 1rem; margin-bottom: 0.25rem;">
+                        <a href="@routes.BookController.detail(book.id)" style="color: var(--text-primary); text-decoration: none; font-weight: 600;">
+                            @book.title
+                        </a>
+                    </h3>
+                    
+                    @for(sub <- book.metadata.subtitle) {
+                        <div style="font-size: 0.9rem; color: var(--text-secondary); margin-bottom: 0.5rem;">@sub</div>
+                    }
+
+                    <p style="margin-bottom: 0.5rem;">
+                        @book.description.map(_.take(150) + "...").getOrElse("No description provided.")
+                    </p>
+
+                    <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                        <span class="badge" style="background-color: rgba(56, 139, 253, 0.15); color: #58a6ff; border-color: rgba(56, 139, 253, 0.4);">
+                            @book.metadata.subjects.map(_.split(",").headOption.getOrElse("Fiction")).getOrElse("General")
+                        </span>
+                        <span class="badge" style="background-color: rgba(46, 160, 67, 0.15); color: #3fb950; border-color: rgba(46, 160, 67, 0.4);">
+                            Available
+                        </span>
+                    </div>
+                </div>
+
+                <footer class="feed-actions">
+                    <a href="@routes.BookController.detail(book.id)" class="action-btn" style="text-decoration: none;">
+                        <i class="fa-regular fa-comment"></i>
+                        <span>@data.commentCount</span>
+                    </a>
+                    
+                    @helper.form(action = routes.InteractionController.repost(book.id), Symbol("style") -> "margin: 0;") {
+                        @helper.CSRF.formField
+                        <button type="submit" class="action-btn @if(data.isReposted){active}" style="@if(data.isReposted){color: #3fb950;}">
+                            <i class="fa-solid fa-retweet"></i>
+                            <span>@data.repostCount</span>
+                        </button>
+                    }
+
+                    @helper.form(action = routes.InteractionController.like(book.id), Symbol("style") -> "margin: 0;") {
+                        @helper.CSRF.formField
+                        <button type="submit" class="action-btn @if(data.isLiked){active}" style="@if(data.isLiked){color: #f91880;}">
+                            <i class="@if(data.isLiked){fa-solid fa-heart}else{fa-regular fa-heart}"></i>
+                            <span>@data.likeCount</span>
+                        </button>
+                    }
+
+                    @helper.form(action = routes.InteractionController.bookmark(book.id), Symbol("style") -> "margin: 0;") {
+                        @helper.CSRF.formField
+                        <button type="submit" class="action-btn @if(data.isBookmarked){active}" style="@if(data.isBookmarked){color: #1d9bf0;}">
+                            <i class="@if(data.isBookmarked){fa-solid fa-bookmark}else{fa-regular fa-bookmark}"></i>
+                        </button>
+                    }
+                    
+                    <button class="action-btn" onclick="copyToClipboard('@routes.BookController.detail(book.id).absoluteURL()')">
+                         <i class="fa-solid fa-share-nodes"></i>
+                    </button>
+                </footer>
+            </article>
+        }
     }
-  </ul>
 }

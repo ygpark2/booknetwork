@@ -1,28 +1,47 @@
-@(loginForm: play.api.data.Form[forms.LoginForm])(implicit messages: play.api.i18n.Messages, request: play.api.mvc.RequestHeader)
+@(loginForm: play.api.data.Form[forms.LoginForm], trendingBooks: Seq[models.Book] = Nil)(implicit messages: play.api.i18n.Messages, request: play.api.mvc.RequestHeader)
 
-@main("Login") {
-  <h1>Login</h1>
+@main("Login", trendingBooks = trendingBooks) {
+  <div style="max-width: 400px; margin: 4rem auto;">
+    <div class="card">
+        <div class="card-header" style="text-align: center; padding-bottom: 0;">
+            <h1 style="font-size: 1.75rem;">Welcome Back</h1>
+            <p style="color: var(--text-secondary);">Please sign in to your account</p>
+        </div>
+        
+        <div class="card-body">
+            @if(request.flash.get("error").isDefined) {
+                <div class="alert alert-error">
+                @request.flash.get("error")
+                </div>
+            }
 
-  @if(request.flash.get("error").isDefined) {
-    <div style="color: red;">
-      @request.flash.get("error")
+            @if(request.flash.get("success").isDefined) {
+                <div class="alert alert-success">
+                @request.flash.get("success")
+                </div>
+            }
+
+            @helper.form(action = routes.AuthController.loginSubmit) {
+                @helper.CSRF.formField
+                
+                <div class="form-group">
+                    <label for="email">Email Address</label>
+                    <input type="email" name="email" id="email" value="@loginForm("email").value" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="password">Password</label>
+                    <input type="password" name="password" id="password" required>
+                </div>
+
+                <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 1rem;">Sign In</button>
+            }
+        </div>
+        <div class="card-footer" style="justify-content: center;">
+            <p style="text-align: center; margin: 0;">
+                Don't have an account? <a href="@routes.AuthController.register">Register here</a>
+            </p>
+        </div>
     </div>
-  }
-
-  @if(request.flash.get("success").isDefined) {
-    <div style="color: green;">
-      @request.flash.get("success")
-    </div>
-  }
-
-  @helper.form(action = routes.AuthController.loginSubmit) {
-    @helper.CSRF.formField
-    @helper.inputText(loginForm("email"), Symbol("_label") -> "Email")
-    @helper.inputPassword(loginForm("password"), Symbol("_label") -> "Password")
-    <button type="submit">Login</button>
-  }
-
-  <p>
-    Don't have an account? <a href="@routes.AuthController.register">Register here</a>
-  </p>
+  </div>
 }

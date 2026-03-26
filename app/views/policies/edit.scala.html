@@ -1,7 +1,12 @@
-@(policyForm: play.api.data.Form[forms.PolicyForm])(implicit messages: play.api.i18n.Messages, request: play.api.mvc.RequestHeader)
+@(policyForm: play.api.data.Form[forms.PolicyForm], trendingBooks: Seq[models.Book] = Nil)(implicit messages: play.api.i18n.Messages, request: play.api.mvc.RequestHeader)
 
-@main("Penalties") {
-  <h1>Penalty Policy</h1>
+@main("Penalties", trendingBooks = trendingBooks) {
+  <header class="detail-header">
+      <h2 style="font-size: 1.25rem; font-weight: 700; margin: 0;">Penalties</h2>
+  </header>
+
+  <div style="padding: 1rem;">
+  <p style="color: var(--text-secondary); margin-bottom: 1rem;">Update your library's penalty and loan policies.</p>
   @helper.form(action = routes.PolicyController.update) {
     @helper.CSRF.formField
     @helper.inputText(policyForm("defaultLoanDays"), Symbol("_label") -> "Default Loan Days")

@@ -1,12 +1,37 @@
-@(loans: Seq[models.Loan])(implicit messages: play.api.i18n.Messages, request: play.api.mvc.RequestHeader)
+@(loans: Seq[models.Loan], trendingBooks: Seq[models.Book] = Nil)(implicit messages: play.api.i18n.Messages, request: play.api.mvc.RequestHeader)
 
-@main("My Library") {
-  <h1>My Library</h1>
+@main("My Library Dashboard", trendingBooks = trendingBooks) {
 
-  <h3>Borrowed Books</h3>
-  <ul>
-    @for(loan <- loans) {
-      <li>Loan #@loan.id | Item: @loan.bookItemId | Due: @loan.dueAt | Status: @loan.status</li>
-    }
-  </ul>
+  <header class="detail-header">
+      <h2 style="font-size: 1.25rem; font-weight: 700; margin: 0;">My Library</h2>
+  </header>
+
+  <div style="padding: 1rem;">
+      <p style="color: var(--text-secondary); margin-bottom: 1rem;">Manage your borrowed items</p>
+
+  @if(loans.isEmpty) {
+      <div class="card" style="text-align: center; padding: 3rem;">
+          <p style="margin-bottom: 1rem;">You don't have any active loans.</p>
+          <a href="@routes.BookController.list" class="btn btn-primary">Find a Book</a>
+      </div>
+  } else {
+      <div class="grid-cols-3">
+        @for(loan <- loans) {
+          <div class="card">
+            <div class="card-header">
+                <div class="flex justify-between items-center">
+                    <h3 class="card-title" style="font-size: 1.1rem;">Loan #@loan.id</h3>
+                    <span class="badge @if(loan.status == "Active") { badge-green } else { badge-blue }">@loan.status</span>
+                </div>
+            </div>
+            <div class="card-body">
+                <p><strong>Item ID:</strong> @loan.bookItemId</p>
+                <p><strong>Due Date:</strong> @loan.dueAt</p>
+                <p><strong>Loaned On:</strong> @loan.loanedAt</p>
+            </div>
+          </div>
+        }
+      </div>
+  }
+  </div>
 }

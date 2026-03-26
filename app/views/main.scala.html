@@ -1,40 +1,191 @@
-@(title: String)(content: Html)(implicit messages: play.api.i18n.Messages, request: play.api.mvc.RequestHeader)
+@(title: String, mainClass: String = "", trendingBooks: Seq[models.Book] = Nil)(content: Html)(implicit messages: play.api.i18n.Messages, request: play.api.mvc.RequestHeader)
 
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>@title</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>@title - BookNetwork</title>
+    <link rel="stylesheet" href="@routes.Assets.versioned("stylesheets/main.css")">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- FontAwesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body>
-    <nav>
-        <a href="@routes.BookController.list">Books</a>
-        <a href="@routes.LoanController.index">Loans</a>
-        <a href="@routes.LibraryController.dashboard">My Library</a>
-        <a href="@routes.PolicyController.edit">Penalties</a>
-        @request.session.get("userEmail").map { userEmail =>
-            <span>Welcome, @userEmail</span>
-            <form action="@routes.AuthController.logout" method="POST" style="display: inline;">
-                @helper.CSRF.formField
-                <button type="submit">Logout</button>
-            </form>
-        }.getOrElse {
-            <a href="@routes.AuthController.login">Login</a>
-            <a href="@routes.AuthController.register">Register</a>
+    <div class="app-container">
+        <!-- Left Sidebar Navigation -->
+        <aside class="sidebar-left">
+            <a href="@routes.BookController.list" class="nav-brand">BookNetwork</a>
+            
+            <nav style="display: flex; flex-direction: column; gap: 0.5rem;">
+                <a href="@routes.BookController.list" class="nav-link @if(title == "Books") { active }">
+                    <i class="fa-solid fa-house" style="width: 24px;"></i> Home
+                </a>
+                <a href="@routes.BookController.bookmarkList" class="nav-link @if(title == "Bookmarks") { active }">
+                    <i class="fa-solid fa-bookmark" style="width: 24px;"></i> Bookmarks
+                </a>
+                <a href="@routes.LoanController.index" class="nav-link @if(title == "Loans") { active }">
+                    <i class="fa-solid fa-right-left" style="width: 24px;"></i> Loans
+                </a>
+                <a href="@routes.LibraryController.dashboard" class="nav-link @if(title == "My Library") { active }">
+                    <i class="fa-solid fa-book-open" style="width: 24px;"></i> My Library
+                </a>
+                <a href="@routes.PolicyController.edit" class="nav-link @if(title == "Penalties") { active }">
+                    <i class="fa-solid fa-gavel" style="width: 24px;"></i> Penalties
+                </a>
+            </nav>
+
+            <div style="margin-top: auto; padding-top: 1rem; border-top: 1px solid var(--border-color);">
+                @request.session.get("userEmail").map { userEmail =>
+                    <div style="padding: 0.5rem 1rem; margin-bottom: 0.5rem; display: flex; align-items: center; gap: 0.75rem;">
+                        <div class="avatar" style="width: 32px; height: 32px; font-size: 0.8rem; margin: 0;">@userEmail.head.toUpper</div>
+                        <span style="font-weight: 600; font-size: 0.9rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">@userEmail</span>
+                    </div>
+                    <form action="@routes.AuthController.logout" method="POST">
+                        @helper.CSRF.formField
+                        <button type="submit" class="nav-link" style="width: 100%; border: none; background: none; cursor: pointer; text-align: left; padding: 0.5rem 1rem; font-size: 0.9rem;">
+                            <i class="fa-solid fa-sign-out-alt" style="width: 20px;"></i> Logout
+                        </button>
+                    </form>
+                }.getOrElse {
+                    <a href="@routes.AuthController.login" class="nav-link" style="padding: 0.5rem 1rem; font-size: 0.9rem;">
+                        <i class="fa-solid fa-sign-in-alt" style="width: 20px;"></i> Log In
+                    </a>
+                }
+            </div>
+        </aside>
+
+        <!-- Main Content Area -->
+        <main class="main-content @mainClass">
+            @if(request.flash.get("success").isDefined) {
+                <div style="padding: 1rem; background-color: rgba(46, 160, 67, 0.15); color: #3fb950; border-bottom: 1px solid rgba(46, 160, 67, 0.4);">
+                    @request.flash.get("success")
+                </div>
+            }
+
+            @if(request.flash.get("error").isDefined) {
+                <div style="padding: 1rem; background-color: rgba(255, 123, 114, 0.15); color: #ff7b72; border-bottom: 1px solid rgba(255, 123, 114, 0.4);">
+                    @request.flash.get("error")
+                </div>
+            }
+
+            @content
+        </main>
+        
+        <!-- Right Sidebar (Optional/Placeholder for now as per design) -->
+        <aside class="sidebar-right hide-on-tablet">
+           @if(!request.session.get("userEmail").isDefined) {
+               <div style="background-color: var(--surface-color); border: 1px solid var(--border-color); border-radius: var(--border-radius); padding: 1.5rem; margin-bottom: 1.5rem;">
+                   <h3 style="font-size: 1.25rem; font-weight: 700; margin-bottom: 0.5rem;">New to wonderful.dev?</h3>
+                   <p style="color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 1.5rem;">Sign up now to get your dev profile</p>
+                   
+                   <div style="display: flex; flex-direction: column; gap: 0.75rem; margin-bottom: 1.5rem;">
+                       <a href="@routes.AuthController.login" class="btn btn-primary" style="width: 100%; border-radius: 20px; font-weight: 600;">Log In</a>
+                   </div>
+                   
+                   <p style="color: var(--text-secondary); font-size: 0.75rem; line-height: 1.4;">
+                       By signing up, you agree to the <a href="#" style="color: var(--accent-color);">Terms of Service</a> and <a href="#" style="color: var(--accent-color);">Privacy Policy</a>.
+                   </p>
+               </div>
+           }
+
+           <div style="background-color: var(--surface-color); border: 1px solid var(--border-color); border-radius: var(--border-radius); padding: 1rem; margin-bottom: 1rem;">
+               <h3 style="font-size: 1.1rem; margin-bottom: 1rem;">You might like</h3>
+               <div style="display: flex; flex-direction: column; gap: 1rem;">
+                   <!-- PandaDEV -->
+                   <div style="display: flex; align-items: center; justify-content: space-between;">
+                        <div style="display: flex; align-items: center; gap: 0.75rem;">
+                            <div class="avatar" style="width: 38px; height: 38px; font-size: 0.9rem; background-color: #ff5050; color: white;">P</div>
+                            <div>
+                                <div style="font-weight: 700; font-size: 0.9rem;">PandaDEV</div>
+                                <div style="font-size: 0.8rem; color: var(--text-secondary);">@@PandaDEV</div>
+                            </div>
+                        </div>
+                        <form action="#" method="POST"> <!-- Action placeholder for prototype -->
+                             <button type="button" class="btn btn-sm btn-secondary" style="border-radius: 20px; font-weight: 600; padding: 0.25rem 1rem;">Follow</button>
+                        </form>
+                   </div>
+                   
+                   <!-- tri -->
+                   <div style="display: flex; align-items: center; justify-content: space-between;">
+                        <div style="display: flex; align-items: center; gap: 0.75rem;">
+                            <div class="avatar" style="width: 38px; height: 38px; font-size: 0.9rem; background-color: #50ff50; color: #0d1117;">T</div>
+                            <div>
+                                <div style="font-weight: 700; font-size: 0.9rem;">tri</div>
+                                <div style="font-size: 0.8rem; color: var(--text-secondary);">@@fevnem</div>
+                            </div>
+                        </div>
+                        <button type="button" class="btn btn-sm btn-secondary" style="border-radius: 20px; font-weight: 600; padding: 0.25rem 1rem;">Follow</button>
+                   </div>
+                   
+                   <!-- acdc -->
+                   <div style="display: flex; align-items: center; justify-content: space-between;">
+                        <div style="display: flex; align-items: center; gap: 0.75rem;">
+                            <div class="avatar" style="width: 38px; height: 38px; font-size: 0.9rem; background-color: #5050ff; color: white;">A</div>
+                            <div>
+                                <div style="font-weight: 700; font-size: 0.9rem; line-height: 1.1;">Antônio "acdc" Jr.</div>
+                                <div style="font-size: 0.8rem; color: var(--text-secondary);">@@acdcjunior</div>
+                            </div>
+                        </div>
+                        <button type="button" class="btn btn-sm btn-secondary" style="border-radius: 20px; font-weight: 600; padding: 0.25rem 1rem;">Follow</button>
+                   </div>
+                   
+                   <a href="#" style="font-size: 0.85rem; color: var(--accent-color); margin-top: 0.5rem;">Show more</a>
+               </div>
+           </div>
+
+           <div style="background-color: var(--surface-color); border: 1px solid var(--border-color); border-radius: var(--border-radius); padding: 1rem;">
+                   <h3 style="font-size: 1.1rem; margin-bottom: 1rem;">Trending Books</h3>
+                   <div style="display: flex; flex-direction: column; gap: 1rem;">
+                       @for(book <- trendingBooks) {
+                           <div>
+                               <div style="font-weight: 600; font-size: 0.9rem;">
+                                   <a href="@routes.BookController.detail(book.id)" style="color: var(--text-primary); text-decoration: none;">
+                                       @book.title
+                                   </a>
+                               </div>
+                               <div style="font-size: 0.8rem; color: var(--text-secondary);">
+                                   @book.metadata.subjects.map(_.split(",").headOption.getOrElse("Fiction")).getOrElse("General") • @book.author
+                               </div>
+                           </div>
+                       }
+                   </div>
+               </div>
+               <div style="margin-top: 1rem; font-size: 0.75rem; color: var(--text-secondary); text-align: center;">
+                   &copy; 2026 BookNetwork Inc.
+               </div>
+            </aside>
+    </div>
+
+    <script>
+        document.addEventListener('click', function (event) {
+            // Handle Dropdown Toggles
+            const toggle = event.target.closest('[data-bs-toggle="dropdown"]');
+            if (toggle) {
+                const menu = toggle.nextElementSibling;
+                if (menu && menu.classList.contains('dropdown-menu')) {
+                    menu.classList.toggle('show');
+                    // Close other menus
+                    document.querySelectorAll('.dropdown-menu.show').forEach(otherMenu => {
+                        if (otherMenu !== menu) otherMenu.classList.remove('show');
+                    });
+                    event.stopPropagation();
+                }
+            } else {
+                // Close all menus on click outside
+                document.querySelectorAll('.dropdown-menu.show').forEach(menu => {
+                    menu.classList.remove('show');
+                });
+            }
+        });
+
+        function copyToClipboard(text) {
+            navigator.clipboard.writeText(text).then(() => {
+                alert('Link copied to clipboard!');
+            });
         }
-    </nav>
-
-    @if(request.flash.get("success").isDefined) {
-        <div style="color: green;">
-            @request.flash.get("success")
-        </div>
-    }
-
-    @if(request.flash.get("error").isDefined) {
-        <div style="color: red;">
-            @request.flash.get("error")
-        </div>
-    }
-
-    @content
+    </script>
 </body>
 </html>

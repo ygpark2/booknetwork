@@ -1,52 +1,164 @@
-@(book: models.Book, items: Seq[models.BookItem], itemForm: play.api.data.Form[(String, Option[String], Option[String])])(implicit messages: play.api.i18n.Messages, request: play.api.mvc.RequestHeader)
+@(viewData: models.BookViewData, items: Seq[models.BookItem], itemForm: play.api.data.Form[(String, Option[String], Option[String])], comments: Seq[(models.BookComment, models.User)], trendingBooks: Seq[models.Book] = Nil)(implicit messages: play.api.i18n.Messages, request: play.api.mvc.RequestHeader)
 
-@main("Book Detail") {
-  <h1>@book.title</h1>
-  <p><strong>Author:</strong> @book.author</p>
-  @book.metadata.subtitle.map { subtitle =>
-    <p><strong>Subtitle:</strong> @subtitle</p>
-  }
-  @book.description.map { description =>
-    <p><strong>Description:</strong> @description</p>
-  }
-  <h3>Metadata</h3>
-  <ul>
-    <li><strong>ISBN-10:</strong> @book.metadata.isbn10.getOrElse("-")</li>
-    <li><strong>ISBN-13:</strong> @book.metadata.isbn13.getOrElse("-")</li>
-    <li><strong>ISSN:</strong> @book.metadata.issn.getOrElse("-")</li>
-    <li><strong>Publisher:</strong> @book.metadata.publisher.getOrElse("-")</li>
-    <li><strong>Publication Year:</strong> @book.metadata.publicationYear.map(_.toString).getOrElse("-")</li>
-    <li><strong>Edition:</strong> @book.metadata.edition.getOrElse("-")</li>
-    <li><strong>Language:</strong> @book.metadata.language.getOrElse("-")</li>
-    <li><strong>Subjects:</strong> @book.metadata.subjects.getOrElse("-")</li>
-    <li><strong>Classification:</strong> @book.metadata.classification.getOrElse("-")</li>
-    <li><strong>Call Number Base:</strong> @book.metadata.callNumberBase.getOrElse("-")</li>
-    <li><strong>Format:</strong> @book.metadata.format.getOrElse("-")</li>
-    <li><strong>Pages:</strong> @book.metadata.pages.map(_.toString).getOrElse("-")</li>
-    <li><strong>Dimensions:</strong> @book.metadata.dimensions.getOrElse("-")</li>
-  </ul>
+@main("Book Detail", trendingBooks = trendingBooks) {
+    @defining(viewData.book) { book =>
+        <!-- Detail Header -->
+        <header class="detail-header">
+            <a href="@routes.BookController.list" class="back-btn">
+                <i class="fa-solid fa-arrow-left"></i>
+            </a>
+            <h2 style="font-size: 1.25rem; font-weight: 700; margin: 0;">Book Thread</h2>
+        </header>
 
-  <h3>Items</h3>
-  <ul>
-    @for(item <- items) {
-      <li>
-        <strong>Barcode:</strong> @item.barcode
-        <span> | Status: @item.status</span>
-        <span> | Location: @item.location.getOrElse("-")</span>
-      </li>
+        <!-- Main Post (Book Detail) -->
+        <article class="detail-post">
+            <header class="feed-header">
+                <div class="avatar">
+                    @book.author.headOption.getOrElse('?')
+                </div>
+                <div class="user-info">
+                    <span class="user-name">@book.author</span>
+                    <span class="user-handle">@@@book.author.replaceAll("\\s", "").toLowerCase</span>
+                </div>
+                <div class="dropdown" style="margin-left: auto;">
+                    <button class="action-btn" id="detailMenuButton" data-bs-toggle="dropdown" aria-expanded="false">
+                        <i class="fa-solid fa-ellipsis"></i>
+                    </button>
+                    @if(viewData.isOwner) {
+                        <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="detailMenuButton" style="background-color: var(--card-bg); border: 1px solid var(--border-color);">
+                            <li><a class="dropdown-item" href="@routes.BookController.edit(book.id)" style="color: var(--text-primary);">Edit</a></li>
+                        </ul>
+                    } else {
+                        <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="detailMenuButton" style="background-color: var(--card-bg); border: 1px solid var(--border-color);">
+                            <li><a class="dropdown-item" href="#" style="color: var(--text-primary);">Report</a></li>
+                        </ul>
+                    }
+                </div>
+            </header>
+
+            <div class="feed-content" style="margin-left: 0; margin-top: 1rem; font-size: 1.1rem;">
+                <h1 style="font-size: 1.5rem; margin-bottom: 0.5rem;">@book.title</h1>
+                
+                @book.metadata.subtitle.map { sub =>
+                    <div style="font-size: 1rem; color: var(--text-secondary); margin-bottom: 1rem;">@sub</div>
+                }
+                
+                <p style="margin-bottom: 1rem; line-height: 1.6;">
+                    @book.description.getOrElse("No description provided.")
+                </p>
+
+                <div style="margin-top: 1rem; padding: 1rem; background-color: rgba(22, 27, 34, 0.5); border: 1px solid var(--border-color); border-radius: var(--border-radius);">
+                    <h4 style="font-size: 0.9rem; color: var(--text-secondary); margin-bottom: 0.5rem; text-transform: uppercase;">Book Details</h4>
+                    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.5rem; font-size: 0.9rem;">
+                        <div><span style="color: var(--text-secondary);">ISBN:</span> @book.metadata.isbn13.getOrElse("-")</div>
+                        <div><span style="color: var(--text-secondary);">Publisher:</span> @book.metadata.publisher.getOrElse("-")</div>
+                        <div><span style="color: var(--text-secondary);">Year:</span> @book.metadata.publicationYear.map(_.toString).getOrElse("-")</div>
+                        <div><span style="color: var(--text-secondary);">Pages:</span> @book.metadata.pages.map(_.toString).getOrElse("-")</div>
+                    </div>
+                </div>
+
+                <!-- Inventory Table -->
+                <div style="margin-top: 1rem;">
+                     <h4 style="font-size: 0.9rem; color: var(--text-secondary); margin-bottom: 0.5rem; text-transform: uppercase;">Inventory</h4>
+                     @if(items.isEmpty) {
+                        <div style="font-style: italic; color: var(--text-secondary);">No items available.</div>
+                     } else {
+                         @for(item <- items) {
+                             <div style="display: flex; justify-content: space-between; padding: 0.5rem; border-bottom: 1px solid var(--border-color);">
+                                 <span style="font-family: monospace;">@item.barcode</span>
+                                 <span class="badge" style="@if(item.status == "Available") { color: #3fb950; border-color: #3fb950; } else { color: #58a6ff; border-color: #58a6ff; }">@item.status</span>
+                             </div>
+                         }
+                     }
+                </div>
+
+                <div style="margin-top: 1rem; color: var(--text-secondary); font-size: 0.9rem;">
+                    <span>10:30 AM · Mar 25, 2026</span> · <span style="color: var(--text-primary);">BookNetwork Web App</span>
+                </div>
+                
+                <div style="border-top: 1px solid var(--border-color); border-bottom: 1px solid var(--border-color); padding: 0.75rem 0; margin-top: 1rem; display: flex; gap: 1rem;">
+                    <div><span style="font-weight: 700; color: var(--text-primary);">@viewData.repostCount</span> <span style="color: var(--text-secondary);">Reposts</span></div>
+                    <div><span style="font-weight: 700; color: var(--text-primary);">@viewData.bookmarkCount</span> <span style="color: var(--text-secondary);">Bookmarks</span></div>
+                    <div><span style="font-weight: 700; color: var(--text-primary);">@viewData.likeCount</span> <span style="color: var(--text-secondary);">Likes</span></div>
+                </div>
+
+                <div style="display: flex; justify-content: space-around; padding-top: 0.75rem;">
+                    <button class="action-btn" style="font-size: 1.25rem;" onclick="document.querySelector('.comment-input').focus()">
+                        <i class="fa-regular fa-comment"></i>
+                    </button>
+                    
+                    @helper.form(action = routes.InteractionController.repost(book.id), Symbol("style") -> "margin: 0;") {
+                        @helper.CSRF.formField
+                        <button type="submit" class="action-btn @if(viewData.isReposted){active}" style="font-size: 1.25rem; @if(viewData.isReposted){color: #3fb950;}">
+                            <i class="fa-solid fa-retweet"></i>
+                        </button>
+                    }
+
+                    @helper.form(action = routes.InteractionController.like(book.id), Symbol("style") -> "margin: 0;") {
+                        @helper.CSRF.formField
+                        <button type="submit" class="action-btn @if(viewData.isLiked){active}" style="font-size: 1.25rem; @if(viewData.isLiked){color: #f91880;}">
+                            <i class="@if(viewData.isLiked){fa-solid fa-heart}else{fa-regular fa-heart}"></i>
+                        </button>
+                    }
+
+                    @helper.form(action = routes.InteractionController.bookmark(book.id), Symbol("style") -> "margin: 0;") {
+                        @helper.CSRF.formField
+                        <button type="submit" class="action-btn @if(viewData.isBookmarked){active}" style="font-size: 1.25rem; @if(viewData.isBookmarked){color: #1d9bf0;}">
+                            <i class="@if(viewData.isBookmarked){fa-solid fa-bookmark}else{fa-regular fa-bookmark}"></i>
+                        </button>
+                    }
+
+                    <button class="action-btn" style="font-size: 1.25rem;" onclick="copyToClipboard('@routes.BookController.detail(book.id).absoluteURL()')">
+                        <i class="fa-solid fa-share-nodes"></i>
+                    </button>
+                </div>
+            </div>
+        </article>
+
+        <!-- Comments Section -->
+        <section class="comment-section">
+            @defining(comments.filter(_._1.parentId.isEmpty)) { rootComments =>
+                @for((comment, user) <- rootComments) {
+                    @views.html.books.commentItem(comment, user, comments, book.id)
+                }
+            }
+
+            <!-- Fixed Comment Input Area (for root comments) -->
+            @request.session.get("userEmail").map { _ =>
+                @helper.form(action = routes.InteractionController.comment(book.id)) {
+                    @helper.CSRF.formField
+                    <div class="comment-input-area">
+                         <div class="avatar" style="width: 32px; height: 32px; font-size: 0.8rem;">
+                             @request.session.get("userEmail").map(_.headOption.getOrElse('U')).getOrElse('?')
+                         </div>
+                         <textarea name="content" class="comment-input" placeholder="Post your reply" required></textarea>
+                         <button type="submit" class="post-btn">Reply</button>
+                    </div>
+                }
+            }.getOrElse {
+                <div style="padding: 1rem; text-align: center; color: var(--text-secondary);">
+                    Please <a href="@routes.AuthController.login" style="color: var(--link-color);">login</a> to reply.
+                </div>
+            }
+        </section>
     }
-  </ul>
 
-  <h3>Add Item</h3>
-  @helper.form(action = routes.BookController.addItem(book.id)) {
-    @helper.CSRF.formField
-    @helper.inputText(itemForm("barcode"), Symbol("_label") -> "Barcode")
-    @helper.inputText(itemForm("callNumber"), Symbol("_label") -> "Call Number")
-    @helper.inputText(itemForm("location"), Symbol("_label") -> "Location")
-    <button type="submit">Add Item</button>
-  }
-
-  <p>
-    <a href="@routes.BookController.edit(book.id)">Edit book</a>
-  </p>
+    <script>
+        function showReplyForm(commentId) {
+            // Close all other reply forms first
+            document.querySelectorAll('.reply-form-inline').forEach(form => {
+                if (form.id !== 'reply-form-' + commentId) {
+                    form.style.display = 'none';
+                }
+            });
+            
+            const form = document.getElementById('reply-form-' + commentId);
+            if (form) {
+                form.style.display = form.style.display === 'none' ? 'block' : 'none';
+                if (form.style.display === 'block') {
+                    form.querySelector('textarea').focus();
+                }
+            }
+        }
+    </script>
 }

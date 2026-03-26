@@ -14,7 +14,7 @@ class LibraryController @Inject()(cc: MessagesControllerComponents, bookReposito
   private def requireAuth[A](block: => Future[play.api.mvc.Result])(implicit request: play.api.mvc.Request[A]): Future[play.api.mvc.Result] = {
     request.session.get("userEmail") match {
       case Some(_) => block
-      case None => Future.successful(Unauthorized("You must be authenticated to access this page."))
+      case None => Future.successful(Redirect(routes.AuthController.login).flashing("error" -> "You must be authenticated to access this page."))
     }
   }
 
@@ -24,14 +24,15 @@ class LibraryController @Inject()(cc: MessagesControllerComponents, bookReposito
         case Some(email) =>
           userRepository.findByEmail(email).flatMap {
             case Some(user) =>
-              bookRepository.listLoansByBorrower(user.id).map { loans =>
-                Ok(views.html.library.dashboard(loans))
-              }
+              for {
+                loans <- bookRepository.listLoansByBorrower(user.id)
+                trendingBooks <- bookRepository.trending()
+              } yield Ok(views.html.library.dashboard(loans, trendingBooks = trendingBooks))
             case None =>
-              Future.successful(Unauthorized("User not found."))
+              Future.successful(Redirect(routes.AuthController.login).withNewSession.flashing("error" -> "User session invalid, please login again."))
           }
         case None =>
-          Future.successful(Unauthorized("You must be authenticated to access this page."))
+          Future.successful(Redirect(routes.AuthController.login).flashing("error" -> "You must be authenticated to access this page."))
       }
     }
   }

@@ -26,7 +26,7 @@ class LoanController @Inject()(cc: MessagesControllerComponents, bookRepository:
   private def requireAuth[A](block: => Future[play.api.mvc.Result])(implicit request: play.api.mvc.Request[A]): Future[play.api.mvc.Result] = {
     request.session.get("userEmail") match {
       case Some(_) => block
-      case None => Future.successful(Unauthorized("You must be authenticated to access this page."))
+      case None => Future.successful(Redirect(routes.AuthController.login).flashing("error" -> "You must be authenticated to access this page."))
     }
   }
 
@@ -38,15 +38,17 @@ class LoanController @Inject()(cc: MessagesControllerComponents, bookRepository:
             case Some(user) =>
               val loansF = bookRepository.listLoansByOwner(user.id)
               val itemsF = bookRepository.findItemsByOwner(user.id)
+              val trendingF = bookRepository.trending()
               for {
                 loans <- loansF
                 items <- itemsF
-              } yield Ok(views.html.loans.index(loanForm, loans, items))
+                trendingBooks <- trendingF
+              } yield Ok(views.html.loans.index(loanForm, loans, items, trendingBooks = trendingBooks))
             case None =>
-              Future.successful(Unauthorized("User not found."))
+              Future.successful(Redirect(routes.AuthController.login).withNewSession.flashing("error" -> "User session invalid, please login again."))
           }
         case None =>
-          Future.successful(Unauthorized("You must be authenticated to access this page."))
+          Future.successful(Redirect(routes.AuthController.login).flashing("error" -> "You must be authenticated to access this page."))
       }
     }
   }
@@ -86,10 +88,10 @@ class LoanController @Inject()(cc: MessagesControllerComponents, bookRepository:
                       Future.successful(BadRequest("Borrower not found"))
                   }
                 case None =>
-                  Future.successful(Unauthorized("User not found."))
+                  Future.successful(Redirect(routes.AuthController.login).withNewSession.flashing("error" -> "User session invalid, please login again."))
               }
             case None =>
-              Future.successful(Unauthorized("You must be authenticated to access this page."))
+              Future.successful(Redirect(routes.AuthController.login).flashing("error" -> "You must be authenticated to access this page."))
           }
       )
     }

@@ -3,6 +3,7 @@
 GET     /                       controllers.Application.index
 GET     /books                  controllers.BookController.list
 GET     /books/create           controllers.BookController.create
+GET     /bookmarks              controllers.BookController.bookmarkList
 POST    /books/save             controllers.BookController.save
 GET     /books/:id              controllers.BookController.detail(id: Long)
 GET     /books/:id/edit         controllers.BookController.edit(id: Long)
@@ -23,3 +24,14 @@ POST    /auth/register           controllers.AuthController.registerSubmit
 GET     /auth/login              controllers.AuthController.login
 POST    /auth/login              controllers.AuthController.loginSubmit
 POST    /auth/logout             controllers.AuthController.logout
+
+POST    /users/:id/follow        controllers.UserController.follow(id: Long)
+POST    /users/:id/unfollow      controllers.UserController.unfollow(id: Long)
+
+POST    /books/:id/like          controllers.InteractionController.like(id: Long)
+POST    /books/:id/repost        controllers.InteractionController.repost(id: Long)
+POST    /books/:id/bookmark      controllers.InteractionController.bookmark(id: Long)
+POST    /books/:id/comment       controllers.InteractionController.comment(id: Long)
+
+# Map static resources from the /public folder to the /assets URL path
+GET     /assets/*file               controllers.Assets.versioned(path="/public", file: Asset)
