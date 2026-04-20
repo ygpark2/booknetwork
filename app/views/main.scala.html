@@ -1,4 +1,4 @@
-@(title: String, mainClass: String = "", trendingBooks: Seq[models.Book] = Nil)(content: Html)(implicit messages: play.api.i18n.Messages, request: play.api.mvc.RequestHeader)
+@(title: String, mainClass: String = "", trendingBooks: Seq[models.Book] = Nil, recommendedUsers: Seq[models.RecommendedUser] = Nil)(content: Html)(using messages: play.api.i18n.Messages, request: play.api.mvc.RequestHeader)
 
 <!DOCTYPE html>
 <html lang="en">
@@ -86,7 +86,7 @@
                    </div>
                    
                    <p style="color: var(--text-secondary); font-size: 0.75rem; line-height: 1.4;">
-                       By signing up, you agree to the <a href="#" style="color: var(--accent-color);">Terms of Service</a> and <a href="#" style="color: var(--accent-color);">Privacy Policy</a>.
+                       By signing up, you agree to the <a href="@routes.LegalController.terms" style="color: var(--accent-color);">Terms of Service</a> and <a href="@routes.LegalController.privacy" style="color: var(--accent-color);">Privacy Policy</a>.
                    </p>
                </div>
            }
@@ -94,45 +94,38 @@
            <div style="background-color: var(--surface-color); border: 1px solid var(--border-color); border-radius: var(--border-radius); padding: 1rem; margin-bottom: 1rem;">
                <h3 style="font-size: 1.1rem; margin-bottom: 1rem;">You might like</h3>
                <div style="display: flex; flex-direction: column; gap: 1rem;">
-                   <!-- PandaDEV -->
-                   <div style="display: flex; align-items: center; justify-content: space-between;">
-                        <div style="display: flex; align-items: center; gap: 0.75rem;">
-                            <div class="avatar" style="width: 38px; height: 38px; font-size: 0.9rem; background-color: #ff5050; color: white;">P</div>
-                            <div>
-                                <div style="font-weight: 700; font-size: 0.9rem;">PandaDEV</div>
-                                <div style="font-size: 0.8rem; color: var(--text-secondary);">@@PandaDEV</div>
-                            </div>
-                        </div>
-                        <form action="#" method="POST"> <!-- Action placeholder for prototype -->
-                             <button type="button" class="btn btn-sm btn-secondary" style="border-radius: 20px; font-weight: 600; padding: 0.25rem 1rem;">Follow</button>
-                        </form>
-                   </div>
-                   
-                   <!-- tri -->
-                   <div style="display: flex; align-items: center; justify-content: space-between;">
-                        <div style="display: flex; align-items: center; gap: 0.75rem;">
-                            <div class="avatar" style="width: 38px; height: 38px; font-size: 0.9rem; background-color: #50ff50; color: #0d1117;">T</div>
-                            <div>
-                                <div style="font-weight: 700; font-size: 0.9rem;">tri</div>
-                                <div style="font-size: 0.8rem; color: var(--text-secondary);">@@fevnem</div>
-                            </div>
-                        </div>
-                        <button type="button" class="btn btn-sm btn-secondary" style="border-radius: 20px; font-weight: 600; padding: 0.25rem 1rem;">Follow</button>
-                   </div>
-                   
-                   <!-- acdc -->
-                   <div style="display: flex; align-items: center; justify-content: space-between;">
-                        <div style="display: flex; align-items: center; gap: 0.75rem;">
-                            <div class="avatar" style="width: 38px; height: 38px; font-size: 0.9rem; background-color: #5050ff; color: white;">A</div>
-                            <div>
-                                <div style="font-weight: 700; font-size: 0.9rem; line-height: 1.1;">Antônio "acdc" Jr.</div>
-                                <div style="font-size: 0.8rem; color: var(--text-secondary);">@@acdcjunior</div>
-                            </div>
-                        </div>
-                        <button type="button" class="btn btn-sm btn-secondary" style="border-radius: 20px; font-weight: 600; padding: 0.25rem 1rem;">Follow</button>
-                   </div>
-                   
-                   <a href="#" style="font-size: 0.85rem; color: var(--accent-color); margin-top: 0.5rem;">Show more</a>
+                   @if(recommendedUsers.isEmpty) {
+                       <p style="color: var(--text-secondary); font-size: 0.9rem; margin: 0;">No recommendations available.</p>
+                   } else {
+                       @for(entry <- recommendedUsers) {
+                           <div style="display: flex; align-items: center; justify-content: space-between; gap: 0.75rem;">
+                                <div style="display: flex; align-items: center; gap: 0.75rem; min-width: 0;">
+                                    <div class="avatar" style="width: 38px; height: 38px; font-size: 0.9rem;">@entry.user.name.headOption.getOrElse('?')</div>
+                                    <div style="min-width: 0;">
+                                        <div style="font-weight: 700; font-size: 0.9rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">@entry.user.name</div>
+                                        <div style="font-size: 0.8rem; color: var(--text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">@@@entry.user.email.split("@").headOption.getOrElse("user")</div>
+                                    </div>
+                                </div>
+                                @if(request.session.get("userEmail").isDefined) {
+                                    @if(entry.isFollowing) {
+                                        @helper.form(action = routes.UserController.unfollow(entry.user.id), Symbol("style") -> "margin: 0;") {
+                                            @helper.CSRF.formField
+                                            <button type="submit" class="btn btn-sm btn-secondary" style="border-radius: 20px; font-weight: 600; padding: 0.25rem 1rem;">Following</button>
+                                        }
+                                    } else {
+                                        @helper.form(action = routes.UserController.follow(entry.user.id), Symbol("style") -> "margin: 0;") {
+                                            @helper.CSRF.formField
+                                            <button type="submit" class="btn btn-sm btn-secondary" style="border-radius: 20px; font-weight: 600; padding: 0.25rem 1rem;">Follow</button>
+                                        }
+                                    }
+                                } else {
+                                    <a href="@routes.AuthController.login" class="btn btn-sm btn-secondary" style="border-radius: 20px; font-weight: 600; padding: 0.25rem 1rem;">Log In</a>
+                                }
+                           </div>
+                       }
+                   }
+
+                   <a href="@routes.UserController.discover" style="font-size: 0.85rem; color: var(--accent-color); margin-top: 0.5rem;">Show more</a>
                </div>
            </div>
 

@@ -5,6 +5,7 @@ import play.api.data.Forms._
 import play.api.i18n.I18nSupport
 import play.api.mvc.{Action, AnyContent, MessagesAbstractController, MessagesControllerComponents}
 import repositories.{BookRepository, UserRepository}
+import services.SidebarDataService
 
 import forms.BookForm
 
@@ -12,7 +13,7 @@ import javax.inject._
 import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton
-class BookController @Inject()(cc: MessagesControllerComponents, bookRepository: BookRepository, userRepository: UserRepository)(implicit ec: ExecutionContext)
+class BookController @Inject()(cc: MessagesControllerComponents, bookRepository: BookRepository, userRepository: UserRepository, sidebarDataService: SidebarDataService)(implicit ec: ExecutionContext)
   extends MessagesAbstractController(cc) with I18nSupport {
 
   val bookForm: Form[BookForm] = Form(
@@ -20,6 +21,9 @@ class BookController @Inject()(cc: MessagesControllerComponents, bookRepository:
       "title" -> nonEmptyText,
       "author" -> nonEmptyText,
       "description" -> optional(text),
+      "reviewHeadline" -> optional(text),
+      "readingStatus" -> nonEmptyText,
+      "rating" -> optional(number(min = 1, max = 5)),
       "metadata" -> mapping(
         "subtitle" -> optional(text),
         "isbn10" -> optional(text),
@@ -122,6 +126,17 @@ class BookController @Inject()(cc: MessagesControllerComponents, bookRepository:
     )(BookForm.apply)(BookForm.unapply)
   )
 
+  private val allowedReadingStatuses = Set("WANT_TO_READ", "READING", "FINISHED", "REREADING")
+
+  private def normalizedMetadata(metadata: models.BookMetadata): models.BookMetadata =
+    metadata.copy(
+      isbn10 = metadata.isbn10.map(normalizeIsbn).filter(_.nonEmpty),
+      isbn13 = metadata.isbn13.map(normalizeIsbn).filter(_.nonEmpty)
+    )
+
+  private def normalizeIsbn(isbn: String): String =
+    isbn.toUpperCase.replaceAll("[^0-9X]", "")
+
 
   def list: Action[AnyContent] = Action.async { implicit request =>
     val userEmailOpt = request.session.get("userEmail")
@@ -132,11 +147,13 @@ class BookController @Inject()(cc: MessagesControllerComponents, bookRepository:
 
     userFuture.flatMap { userOpt =>
       bookRepository.list().flatMap { books =>
-        bookRepository.trending().flatMap { trendingBooks =>
-          fetchViewData(books, userOpt).map { booksWithData =>
+        for {
+          trendingBooks <- sidebarDataService.trendingBooks()
+          recommendedUsers <- sidebarDataService.recommendedUsers(request.session.get("userEmail"))
+          booksWithData <- fetchViewData(books, userOpt)
+        } yield {
             implicit val messages = request.messages
-            Ok(views.html.books.list(booksWithData, trendingBooks = trendingBooks))
-          }
+            Ok(views.html.books.list(booksWithData, trendingBooks = trendingBooks, recommendedUsers = recommendedUsers))
         }
       }
     }
@@ -148,11 +165,13 @@ class BookController @Inject()(cc: MessagesControllerComponents, bookRepository:
       userRepository.findByEmail(email).flatMap {
         case Some(user) =>
           bookRepository.listBookmarks(user.id).flatMap { books =>
-            bookRepository.trending().flatMap { trendingBooks =>
-              fetchViewData(books, Some(user)).map { booksWithData =>
+            for {
+              trendingBooks <- sidebarDataService.trendingBooks()
+              recommendedUsers <- sidebarDataService.recommendedUsers(request.session.get("userEmail"))
+              booksWithData <- fetchViewData(books, Some(user))
+            } yield {
                 implicit val messages = request.messages
-                Ok(views.html.books.list(booksWithData, "Bookmarks", trendingBooks = trendingBooks))
-              }
+                Ok(views.html.books.list(booksWithData, "Bookmarks", trendingBooks = trendingBooks, recommendedUsers = recommendedUsers))
             }
           }
         case None => Future.successful(Redirect(routes.AuthController.login))
@@ -191,8 +210,24 @@ class BookController @Inject()(cc: MessagesControllerComponents, bookRepository:
 
   def create: Action[AnyContent] = Action.async { implicit request =>
     requireAuth {
-      bookRepository.trending().map { trendingBooks =>
-        Ok(views.html.books.create(bookForm, trendingBooks = trendingBooks))
+      val prefilledForm = bookForm.fill(
+        BookForm(
+          title = request.getQueryString("title").getOrElse(""),
+          author = request.getQueryString("author").getOrElse(""),
+          description = None,
+          reviewHeadline = None,
+          readingStatus = "FINISHED",
+          rating = None,
+          metadata = models.BookMetadata(
+            isbn13 = request.getQueryString("isbn").map(normalizeIsbn).filter(_.nonEmpty)
+          )
+        )
+      )
+      for {
+        trendingBooks <- sidebarDataService.trendingBooks()
+        recommendedUsers <- sidebarDataService.recommendedUsers(request.session.get("userEmail"))
+      } yield {
+        Ok(views.html.books.create(prefilledForm, trendingBooks = trendingBooks, recommendedUsers = recommendedUsers))
       }
     }
   }
@@ -236,6 +271,14 @@ class BookController @Inject()(cc: MessagesControllerComponents, bookRepository:
     }
   }
 
+  private def readingStatusLabel(status: String): String =
+    status match {
+      case "WANT_TO_READ" => "Want to Read"
+      case "READING" => "Reading"
+      case "REREADING" => "Re-reading"
+      case _ => "Finished"
+    }
+
   def detail(id: Long): Action[AnyContent] = Action.async { implicit request =>
     val userEmailOpt = request.session.get("userEmail")
     val userFuture = userEmailOpt match {
@@ -246,11 +289,45 @@ class BookController @Inject()(cc: MessagesControllerComponents, bookRepository:
     userFuture.flatMap { userOpt =>
       getBookDetailData(id, userOpt).flatMap {
         case Some((viewData, items, comments)) =>
-          bookRepository.trending().map { trendingBooks =>
-            Ok(views.html.books.detail(viewData, items, itemForm, comments, trendingBooks = trendingBooks))
+          val relatedByIsbnF = bookRepository.primaryIsbn(viewData.book) match {
+            case Some(isbn) =>
+              bookRepository.listByIsbn(isbn).flatMap(books => fetchViewData(books.filterNot(_.id == viewData.book.id).take(6), userOpt))
+            case None =>
+              Future.successful(Seq.empty)
+          }
+          for {
+            trendingBooks <- sidebarDataService.trendingBooks()
+            recommendedUsers <- sidebarDataService.recommendedUsers(request.session.get("userEmail"))
+            relatedByIsbn <- relatedByIsbnF
+          } yield {
+            Ok(views.html.books.detail(viewData, items, itemForm, comments, relatedByIsbn, readingStatusLabel(viewData.book.readingStatus), trendingBooks = trendingBooks, recommendedUsers = recommendedUsers))
           }
         case None =>
           Future.successful(NotFound("Book not found"))
+      }
+    }
+  }
+
+  def isbnFeed(isbn: String): Action[AnyContent] = Action.async { implicit request =>
+    val userEmailOpt = request.session.get("userEmail")
+    val userFuture = userEmailOpt match {
+      case Some(email) => userRepository.findByEmail(email)
+      case None => Future.successful(None)
+    }
+
+    userFuture.flatMap { userOpt =>
+      bookRepository.listByIsbn(isbn).flatMap { books =>
+        if (books.isEmpty) Future.successful(NotFound("No reader posts found for this ISBN"))
+        else {
+          for {
+            trendingBooks <- sidebarDataService.trendingBooks()
+            recommendedUsers <- sidebarDataService.recommendedUsers(request.session.get("userEmail"))
+            booksWithData <- fetchViewData(books, userOpt)
+          } yield {
+            val displayIsbn = bookRepository.primaryIsbn(books.head).getOrElse(normalizeIsbn(isbn))
+            Ok(views.html.books.isbn(displayIsbn, books.head.title, books.head.author, booksWithData, trendingBooks = trendingBooks, recommendedUsers = recommendedUsers))
+          }
+        }
       }
     }
   }
@@ -264,11 +341,17 @@ class BookController @Inject()(cc: MessagesControllerComponents, bookRepository:
               title = book.title,
               author = book.author,
               description = book.description,
+              reviewHeadline = book.reviewHeadline,
+              readingStatus = book.readingStatus,
+              rating = book.rating,
               metadata = book.metadata
             )
           )
-          bookRepository.trending().map { trendingBooks =>
-            Ok(views.html.books.edit(id, filledForm, trendingBooks = trendingBooks))
+          for {
+            trendingBooks <- sidebarDataService.trendingBooks()
+            recommendedUsers <- sidebarDataService.recommendedUsers(request.session.get("userEmail"))
+          } yield {
+            Ok(views.html.books.edit(id, filledForm, trendingBooks = trendingBooks, recommendedUsers = recommendedUsers))
           }
         case None =>
           Future.successful(NotFound("Book not found"))
@@ -279,24 +362,38 @@ class BookController @Inject()(cc: MessagesControllerComponents, bookRepository:
   def update(id: Long): Action[AnyContent] = Action.async { implicit request =>
     requireAuth {
       bookForm.bindFromRequest().fold(
-        formWithErrors => bookRepository.trending().map { trendingBooks =>
-          BadRequest(views.html.books.edit(id, formWithErrors, trendingBooks = trendingBooks))
-        },
+        formWithErrors =>
+          for {
+            trendingBooks <- sidebarDataService.trendingBooks()
+            recommendedUsers <- sidebarDataService.recommendedUsers(request.session.get("userEmail"))
+          } yield {
+            BadRequest(views.html.books.edit(id, formWithErrors, trendingBooks = trendingBooks, recommendedUsers = recommendedUsers))
+          },
         data => {
           request.session.get("userEmail") match {
             case Some(email) =>
               userRepository.findByEmail(email).flatMap {
                 case Some(user) =>
+                  val readingStatus = if (allowedReadingStatuses.contains(data.readingStatus)) data.readingStatus else "FINISHED"
                   val updatedBook = models.Book(
                     id = id,
                     ownerId = user.id,
                     title = data.title,
                     author = data.author,
                     description = data.description,
-                    metadata = data.metadata
+                    reviewHeadline = data.reviewHeadline.map(_.trim).filter(_.nonEmpty),
+                    readingStatus = readingStatus,
+                    rating = data.rating,
+                    metadata = normalizedMetadata(data.metadata),
+                    createdAt = java.time.LocalDateTime.now()
                   )
-                  bookRepository.update(id, updatedBook).map { _ =>
-                    Redirect(routes.BookController.detail(id)).flashing("success" -> "Book updated")
+                  bookRepository.findById(id).flatMap {
+                    case Some(existingBook) =>
+                      bookRepository.update(id, updatedBook.copy(createdAt = existingBook.createdAt)).map { _ =>
+                        Redirect(routes.BookController.detail(id)).flashing("success" -> "Book updated")
+                      }
+                    case None =>
+                      Future.successful(NotFound("Book not found"))
                   }
                 case None =>
                   Future.successful(Redirect(routes.AuthController.login).withNewSession.flashing("error" -> "User session invalid, please login again."))
@@ -317,8 +414,11 @@ class BookController @Inject()(cc: MessagesControllerComponents, bookRepository:
           userRepository.findByEmail(email).flatMap { userOpt =>
             getBookDetailData(id, userOpt).flatMap {
               case Some((viewData, items, comments)) =>
-                bookRepository.trending().map { trendingBooks =>
-                  BadRequest(views.html.books.detail(viewData, items, formWithErrors, comments, trendingBooks = trendingBooks))
+                for {
+                  trendingBooks <- sidebarDataService.trendingBooks()
+                  recommendedUsers <- sidebarDataService.recommendedUsers(request.session.get("userEmail"))
+                } yield {
+                  BadRequest(views.html.books.detail(viewData, items, formWithErrors, comments, Seq.empty, readingStatusLabel(viewData.book.readingStatus), trendingBooks = trendingBooks, recommendedUsers = recommendedUsers))
                 }
               case None =>
                 Future.successful(NotFound("Book not found"))
@@ -336,20 +436,28 @@ class BookController @Inject()(cc: MessagesControllerComponents, bookRepository:
   def save: Action[AnyContent] = Action.async { implicit request =>
     requireAuth {
       bookForm.bindFromRequest().fold(
-        formWithErrors => bookRepository.trending().map { trendingBooks =>
-          BadRequest(views.html.books.create(formWithErrors, trendingBooks = trendingBooks))
-        },
+        formWithErrors =>
+          for {
+            trendingBooks <- sidebarDataService.trendingBooks()
+            recommendedUsers <- sidebarDataService.recommendedUsers(request.session.get("userEmail"))
+          } yield {
+            BadRequest(views.html.books.create(formWithErrors, trendingBooks = trendingBooks, recommendedUsers = recommendedUsers))
+          },
         data => {
           request.session.get("userEmail") match {
             case Some(email) =>
               userRepository.findByEmail(email).flatMap {
                 case Some(user) =>
+                  val readingStatus = if (allowedReadingStatuses.contains(data.readingStatus)) data.readingStatus else "FINISHED"
                   val book = models.Book(
                     ownerId = user.id,
                     title = data.title,
                     author = data.author,
                     description = data.description,
-                    metadata = data.metadata
+                    reviewHeadline = data.reviewHeadline.map(_.trim).filter(_.nonEmpty),
+                    readingStatus = readingStatus,
+                    rating = data.rating,
+                    metadata = normalizedMetadata(data.metadata)
                   )
                   val item = models.BookItem(
                     bookId = 0L,

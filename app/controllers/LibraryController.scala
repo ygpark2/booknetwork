@@ -3,12 +3,13 @@ package controllers
 import play.api.i18n.I18nSupport
 import play.api.mvc.{Action, AnyContent, MessagesAbstractController, MessagesControllerComponents}
 import repositories.{BookRepository, UserRepository}
+import services.SidebarDataService
 
 import javax.inject._
 import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton
-class LibraryController @Inject()(cc: MessagesControllerComponents, bookRepository: BookRepository, userRepository: UserRepository)(implicit ec: ExecutionContext)
+class LibraryController @Inject()(cc: MessagesControllerComponents, bookRepository: BookRepository, userRepository: UserRepository, sidebarDataService: SidebarDataService)(implicit ec: ExecutionContext)
   extends MessagesAbstractController(cc) with I18nSupport {
 
   private def requireAuth[A](block: => Future[play.api.mvc.Result])(implicit request: play.api.mvc.Request[A]): Future[play.api.mvc.Result] = {
@@ -25,9 +26,11 @@ class LibraryController @Inject()(cc: MessagesControllerComponents, bookReposito
           userRepository.findByEmail(email).flatMap {
             case Some(user) =>
               for {
-                loans <- bookRepository.listLoansByBorrower(user.id)
-                trendingBooks <- bookRepository.trending()
-              } yield Ok(views.html.library.dashboard(loans, trendingBooks = trendingBooks))
+                loans <- bookRepository.listLoanViewDataByBorrower(user.id)
+                paymentsByLoan <- bookRepository.listLoanPaymentsByLoanIds(loans.map(_.loan.id))
+                trendingBooks <- sidebarDataService.trendingBooks()
+                recommendedUsers <- sidebarDataService.recommendedUsers(request.session.get("userEmail"))
+              } yield Ok(views.html.library.dashboard(loans, paymentsByLoan, trendingBooks = trendingBooks, recommendedUsers = recommendedUsers))
             case None =>
               Future.successful(Redirect(routes.AuthController.login).withNewSession.flashing("error" -> "User session invalid, please login again."))
           }

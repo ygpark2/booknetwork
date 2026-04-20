@@ -6,6 +6,8 @@ lazy val root = (project in file(".")).enablePlugins(PlayScala)
 
 scalaVersion := "3.7.4"
 
+Test / parallelExecution := false
+
 resolvers ++= Seq(
   "Typesafe repository" at "https://repo.typesafe.com/typesafe/releases/",
   "Sonatype OSS Releases" at "https://oss.sonatype.org/content/repositories/releases/"
@@ -19,6 +21,7 @@ libraryDependencies ++= Seq(
   "org.playframework.silhouette" %% "play-silhouette" % "10.0.4",
   "org.playframework.silhouette" %% "play-silhouette-password-bcrypt" % "10.0.4",
   "org.playframework.silhouette" %% "play-silhouette-persistence" % "10.0.4",
+  "org.scalatestplus.play" %% "scalatestplus-play" % "7.0.2" % Test,
   "com.h2database" % "h2" % "2.4.240",
   "org.xerial" % "sqlite-jdbc" % "3.49.1.0"
 )

@@ -1,4 +1,31 @@
-This is your new Play application
-=================================
+BookNetwork
+===========
 
-This file will be packaged with your application, when using `activator dist`.
+Play Framework based social library application.
+
+Implemented
+-----------
+
+- User registration, login, logout
+- Reading post creation/edit/detail, inventory item add
+- ISBN-linked reader communities with shared discussion feeds
+- Reading status, rating, review headline, and personal reading notes
+- Likes, reposts, bookmarks, comments, replies
+- Loan checkout, extension, overdue fee accrual, partial/full settlement, payment ledger, downloadable receipts, and return flows
+- Policy edit UI and persistence
+- Sidebar user recommendations, follow/unfollow, discover page
+- Feed timestamps backed by persisted book creation times
+- Borrower dashboard with book, owner, and item details
+- Terms, privacy, and book report pages
+- Application regression tests covering auth, interactions, discover, and loan flows
+
+Known Gaps
+----------
+
+- Existing non-memory databases may need one startup to apply the `BOOKS.CREATED_AT` column backfill
+- Existing non-memory databases may need one startup to apply the new reading-post columns on `BOOKS`
+- Existing non-memory databases may need one startup to apply the new `LOANS` fee-settlement columns
+- Existing non-memory databases may need one startup to create the `LOAN_PAYMENTS` ledger table
+- There is no payment provider integration or refund workflow
+- ISBN entry is manual; there is no external metadata lookup or barcode scanner yet
+- Automated regression tests do not yet cover every UI path or failure case

@@ -7,6 +7,8 @@ import scala.math.BigDecimal
 
 case class User(id: Long = 0L, name: String, email: String, passwordHasher: String, passwordHash: String)
 
+case class RecommendedUser(user: User, isFollowing: Boolean)
+
 case class LibraryPolicy(
   id: Long = 0L,
   ownerId: Long,

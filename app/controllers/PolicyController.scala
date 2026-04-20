@@ -6,12 +6,13 @@ import play.api.data.Forms._
 import play.api.i18n.I18nSupport
 import play.api.mvc.{Action, AnyContent, MessagesAbstractController, MessagesControllerComponents}
 import repositories.UserRepository
+import services.SidebarDataService
 
 import javax.inject._
 import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton
-class PolicyController @Inject()(cc: MessagesControllerComponents, userRepository: UserRepository, bookRepository: repositories.BookRepository)(implicit ec: ExecutionContext)
+class PolicyController @Inject()(cc: MessagesControllerComponents, userRepository: UserRepository, bookRepository: repositories.BookRepository, sidebarDataService: SidebarDataService)(implicit ec: ExecutionContext)
   extends MessagesAbstractController(cc) with I18nSupport {
 
   private val policyForm: Form[PolicyForm] = Form(
@@ -36,17 +37,19 @@ class PolicyController @Inject()(cc: MessagesControllerComponents, userRepositor
           userRepository.findByEmail(email).flatMap {
             case Some(user) =>
               val policyF = userRepository.findPolicyByOwner(user.id)
-              val trendingF = bookRepository.trending()
+              val trendingF = sidebarDataService.trendingBooks()
+              val recommendedF = sidebarDataService.recommendedUsers(request.session.get("userEmail"))
               for {
                 policyOpt <- policyF
                 trendingBooks <- trendingF
+                recommendedUsers <- recommendedF
               } yield {
                 policyOpt match {
                   case Some(policy) =>
                     val filled = policyForm.fill(PolicyForm(policy.defaultLoanDays, policy.maxExtensions, policy.dailyOverdueFee))
-                    Ok(views.html.policies.edit(filled, trendingBooks = trendingBooks))
+                    Ok(views.html.policies.edit(filled, trendingBooks = trendingBooks, recommendedUsers = recommendedUsers))
                   case None =>
-                    Ok(views.html.policies.edit(policyForm, trendingBooks = trendingBooks))
+                    Ok(views.html.policies.edit(policyForm, trendingBooks = trendingBooks, recommendedUsers = recommendedUsers))
                 }
               }
             case None =>
@@ -61,9 +64,13 @@ class PolicyController @Inject()(cc: MessagesControllerComponents, userRepositor
   def update: Action[AnyContent] = Action.async { implicit request =>
     requireAuth {
       policyForm.bindFromRequest().fold(
-        formWithErrors => bookRepository.trending().map { trendingBooks =>
-          BadRequest(views.html.policies.edit(formWithErrors, trendingBooks = trendingBooks))
-        },
+        formWithErrors =>
+          for {
+            trendingBooks <- sidebarDataService.trendingBooks()
+            recommendedUsers <- sidebarDataService.recommendedUsers(request.session.get("userEmail"))
+          } yield {
+            BadRequest(views.html.policies.edit(formWithErrors, trendingBooks = trendingBooks, recommendedUsers = recommendedUsers))
+          },
         data =>
           request.session.get("userEmail") match {
             case Some(email) =>

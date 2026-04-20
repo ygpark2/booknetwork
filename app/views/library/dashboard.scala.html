@@ -1,6 +1,6 @@
-@(loans: Seq[models.Loan], trendingBooks: Seq[models.Book] = Nil)(implicit messages: play.api.i18n.Messages, request: play.api.mvc.RequestHeader)
+@(loans: Seq[models.LoanViewData], paymentsByLoan: Map[Long, Seq[models.LoanPayment]], trendingBooks: Seq[models.Book] = Nil, recommendedUsers: Seq[models.RecommendedUser] = Nil)(using messages: play.api.i18n.Messages, request: play.api.mvc.RequestHeader)
 
-@main("My Library Dashboard", trendingBooks = trendingBooks) {
+@main("My Library Dashboard", trendingBooks = trendingBooks, recommendedUsers = recommendedUsers) {
 
   <header class="detail-header">
       <h2 style="font-size: 1.25rem; font-weight: 700; margin: 0;">My Library</h2>
@@ -16,20 +16,58 @@
       </div>
   } else {
       <div class="grid-cols-3">
-        @for(loan <- loans) {
+        @for(view <- loans) {
+          @defining(paymentsByLoan.getOrElse(view.loan.id, Nil)) { payments =>
           <div class="card">
             <div class="card-header">
                 <div class="flex justify-between items-center">
-                    <h3 class="card-title" style="font-size: 1.1rem;">Loan #@loan.id</h3>
-                    <span class="badge @if(loan.status == "Active") { badge-green } else { badge-blue }">@loan.status</span>
+                    <h3 class="card-title" style="font-size: 1.1rem;">@view.book.title</h3>
+                    <span class="badge @if(view.loan.status == "ACTIVE") { badge-green } else { badge-blue }">@view.loan.status</span>
                 </div>
             </div>
             <div class="card-body">
-                <p><strong>Item ID:</strong> @loan.bookItemId</p>
-                <p><strong>Due Date:</strong> @loan.dueAt</p>
-                <p><strong>Loaned On:</strong> @loan.loanedAt</p>
+                <p><strong>Author:</strong> @view.book.author</p>
+                <p><strong>Owner:</strong> @view.owner.name</p>
+                <p><strong>Item ID:</strong> @view.item.id</p>
+                <p><strong>Barcode:</strong> @view.item.barcode</p>
+                <p><strong>Due Date:</strong> @view.loan.dueAt</p>
+                <p><strong>Loaned On:</strong> @view.loan.loanedAt</p>
+                @if(view.overdueDays > 0) {
+                    <p style="color: #ff7b72;"><strong>Overdue:</strong> @view.overdueDays day(s), fee @view.overdueFee</p>
+                }
+                @if(view.loan.overdueFeePaidAmount > 0) {
+                    <p style="color: #3fb950;"><strong>Paid So Far:</strong> @view.loan.overdueFeePaidAmount</p>
+                }
+                @if(view.isOverdueSettled) {
+                    <p style="color: #3fb950;"><strong>Fee Status:</strong> settled on @view.loan.overdueFeePaidAt.getOrElse(view.loan.dueAt)</p>
+                } else if (view.outstandingOverdueFee > 0) {
+                    <p style="color: #ff7b72;"><strong>Outstanding Fee:</strong> @view.outstandingOverdueFee</p>
+                    @helper.form(action = routes.LoanController.payOverdueFee(view.loan.id), Symbol("style") -> "margin-top: 1rem; display: flex; gap: 0.5rem; align-items: center;") {
+                        @helper.CSRF.formField
+                        <input type="number" name="amount" step="0.01" min="0.01" max="@view.outstandingOverdueFee" value="@view.outstandingOverdueFee" style="max-width: 140px;" required>
+                        <button type="submit" class="btn btn-sm btn-secondary">Record Payment</button>
+                    }
+                    @helper.form(action = routes.LoanController.settleOverdueFee(view.loan.id), Symbol("style") -> "margin-top: 1rem;") {
+                        @helper.CSRF.formField
+                        <button type="submit" class="btn btn-sm btn-primary">Pay Full Balance</button>
+                    }
+                }
+                @if(payments.nonEmpty) {
+                    <div style="margin-top: 1rem;">
+                        <strong style="display: block; margin-bottom: 0.5rem;">Payment History</strong>
+                        <ul style="list-style: none; margin: 0; padding: 0;">
+                            @for(payment <- payments) {
+                                <li style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 0.35rem;">
+                                    @payment.paidAt · @payment.amount ·
+                                    <a href="@routes.ReceiptController.download(payment.receiptNumber)">Receipt @payment.receiptNumber</a>
+                                </li>
+                            }
+                        </ul>
+                    </div>
+                }
             </div>
           </div>
+          }
         }
       </div>
   }

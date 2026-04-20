@@ -1,6 +1,6 @@
-@(registerForm: play.api.data.Form[forms.RegisterForm], trendingBooks: Seq[models.Book] = Nil)(implicit messages: play.api.i18n.Messages, request: play.api.mvc.RequestHeader)
+@(registerForm: play.api.data.Form[forms.RegisterForm], trendingBooks: Seq[models.Book] = Nil, recommendedUsers: Seq[models.RecommendedUser] = Nil)(using messages: play.api.i18n.Messages, request: play.api.mvc.RequestHeader)
 
-@main("Register", trendingBooks = trendingBooks) {
+@main("Register", trendingBooks = trendingBooks, recommendedUsers = recommendedUsers) {
   <div style="max-width: 400px; margin: 4rem auto;">
     <div class="card">
         <div class="card-header" style="text-align: center; padding-bottom: 0;">

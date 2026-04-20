@@ -1,16 +1,25 @@
 package controllers
 
 import javax.inject._
-import play.api.mvc._
+import play.api.data.Form
+import play.api.data.Forms._
+import play.api.i18n.I18nSupport
+import play.api.mvc.{Action, AnyContent, MessagesAbstractController, MessagesControllerComponents, Request, Result}
 import repositories.{BookRepository, UserRepository}
+import services.SidebarDataService
 import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton
 class InteractionController @Inject()(
-  cc: ControllerComponents, 
+  cc: MessagesControllerComponents,
   bookRepository: BookRepository, 
-  userRepository: UserRepository
-)(implicit ec: ExecutionContext) extends AbstractController(cc) {
+  userRepository: UserRepository,
+  sidebarDataService: SidebarDataService
+)(implicit ec: ExecutionContext) extends MessagesAbstractController(cc) with I18nSupport {
+
+  private val reportReasonForm = Form(
+    single("reason" -> nonEmptyText(maxLength = 500))
+  )
 
   private def withUser(block: models.User => Future[Result])(implicit request: Request[AnyContent]): Future[Result] = {
     request.session.get("userEmail") match {
@@ -61,6 +70,39 @@ class InteractionController @Inject()(
       } else {
         Future.successful(Redirect(routes.BookController.detail(bookId)).flashing("error" -> "Reply cannot be empty."))
       }
+    }
+  }
+
+  def showReportForm(bookId: Long): Action[AnyContent] = Action.async { implicit request =>
+    withUser { _ =>
+      bookRepository.findById(bookId).flatMap {
+        case Some(book) =>
+          for {
+            trendingBooks <- sidebarDataService.trendingBooks()
+            recommendedUsers <- sidebarDataService.recommendedUsers(request.session.get("userEmail"))
+          } yield Ok(views.html.books.report(book, reportReasonForm, trendingBooks = trendingBooks, recommendedUsers = recommendedUsers))
+        case None => Future.successful(NotFound("Book not found"))
+      }
+    }
+  }
+
+  def submitReport(bookId: Long): Action[AnyContent] = Action.async { implicit request =>
+    withUser { user =>
+      reportReasonForm.bindFromRequest().fold(
+        formWithErrors =>
+          bookRepository.findById(bookId).flatMap {
+            case Some(book) =>
+              for {
+                trendingBooks <- sidebarDataService.trendingBooks()
+                recommendedUsers <- sidebarDataService.recommendedUsers(request.session.get("userEmail"))
+              } yield BadRequest(views.html.books.report(book, formWithErrors, trendingBooks = trendingBooks, recommendedUsers = recommendedUsers))
+            case None => Future.successful(NotFound("Book not found"))
+          },
+        reason =>
+          bookRepository.createReport(user.id, bookId, reason.trim).map { _ =>
+            Redirect(routes.BookController.detail(bookId)).flashing("success" -> "Report submitted")
+          }
+      )
     }
   }
 }

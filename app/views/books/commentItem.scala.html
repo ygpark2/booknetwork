@@ -1,4 +1,4 @@
-@(comment: models.BookComment, user: models.User, allComments: Seq[(models.BookComment, models.User)], bookId: Long)(implicit messages: play.api.i18n.Messages, request: play.api.mvc.RequestHeader)
+@(comment: models.BookComment, user: models.User, allComments: Seq[(models.BookComment, models.User)], bookId: Long)(using messages: play.api.i18n.Messages, request: play.api.mvc.RequestHeader)
 
 <div class="comment-group" id="comment-@comment.id" style="@if(comment.parentId.isDefined){ margin-left: 2rem; border-left: 1px solid var(--border-color); }">
     <article class="feed-item" style="border-bottom: 1px solid var(--border-color); padding: 0.75rem 1rem;">

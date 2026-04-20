@@ -3,6 +3,7 @@
 GET     /                       controllers.Application.index
 GET     /books                  controllers.BookController.list
 GET     /books/create           controllers.BookController.create
+GET     /books/isbn/:isbn       controllers.BookController.isbnFeed(isbn: String)
 GET     /bookmarks              controllers.BookController.bookmarkList
 POST    /books/save             controllers.BookController.save
 GET     /books/:id              controllers.BookController.detail(id: Long)
@@ -13,11 +14,18 @@ POST    /books/:id/items        controllers.BookController.addItem(id: Long)
 GET     /loans                  controllers.LoanController.index
 POST    /loans/checkout         controllers.LoanController.checkout
 POST    /loans/:id/return       controllers.LoanController.returnLoan(id: Long)
+POST    /loans/:id/extend       controllers.LoanController.extendLoan(id: Long)
+POST    /loans/:id/pay-fee      controllers.LoanController.payOverdueFee(id: Long)
+POST    /loans/:id/settle-fee   controllers.LoanController.settleOverdueFee(id: Long)
 
 GET     /library                controllers.LibraryController.dashboard
+GET     /receipts/:receiptNumber controllers.ReceiptController.download(receiptNumber: String)
 
 GET     /policies               controllers.PolicyController.edit
 POST    /policies               controllers.PolicyController.update
+
+GET     /terms                  controllers.LegalController.terms
+GET     /privacy                controllers.LegalController.privacy
 
 GET     /auth/register           controllers.AuthController.register
 POST    /auth/register           controllers.AuthController.registerSubmit
@@ -25,6 +33,7 @@ GET     /auth/login              controllers.AuthController.login
 POST    /auth/login              controllers.AuthController.loginSubmit
 POST    /auth/logout             controllers.AuthController.logout
 
+GET     /users/discover          controllers.UserController.discover
 POST    /users/:id/follow        controllers.UserController.follow(id: Long)
 POST    /users/:id/unfollow      controllers.UserController.unfollow(id: Long)
 
@@ -32,6 +41,8 @@ POST    /books/:id/like          controllers.InteractionController.like(id: Long
 POST    /books/:id/repost        controllers.InteractionController.repost(id: Long)
 POST    /books/:id/bookmark      controllers.InteractionController.bookmark(id: Long)
 POST    /books/:id/comment       controllers.InteractionController.comment(id: Long)
+GET     /books/:id/report        controllers.InteractionController.showReportForm(id: Long)
+POST    /books/:id/report        controllers.InteractionController.submitReport(id: Long)
 
 # Map static resources from the /public folder to the /assets URL path
 GET     /assets/*file               controllers.Assets.versioned(path="/public", file: Asset)

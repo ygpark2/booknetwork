@@ -10,7 +10,8 @@ import scala.concurrent.{ExecutionContext, Future}
 
 class UserRepository @Inject()(config: Configuration)(implicit ec: ExecutionContext) {
 
-  private val executor = AsyncExecutor("user-db", numThreads = 10, queueSize = 1000)
+  private val dbThreads = config.getOptional[Int]("app.db.threads").getOrElse(10)
+  private val executor = AsyncExecutor("user-db", numThreads = dbThreads, queueSize = 1000)
   private val database = Database.forURL(
     config.getOptional[String]("db.default.url").getOrElse("jdbc:h2:mem:play;DB_CLOSE_DELAY=-1"),
     driver = config.getOptional[String]("db.default.driver").getOrElse("org.h2.Driver"),
@@ -24,6 +25,9 @@ class UserRepository @Inject()(config: Configuration)(implicit ec: ExecutionCont
 
   def findByEmail(email: String): Future[Option[User]] =
     database.run(users.filter(_.email === email).result.headOption)
+
+  def findById(id: Long): Future[Option[User]] =
+    database.run(users.filter(_.id === id).result.headOption)
 
   def insert(user: User): Future[Long] =
     database.run((users returning users.map(_.id)) += user)
@@ -53,17 +57,20 @@ class UserRepository @Inject()(config: Configuration)(implicit ec: ExecutionCont
     database.run(action.transactionally)
   }
 
-  def listRecommendUsers(excludeEmail: Option[String], limit: Int = 3): Future[Seq[User]] = {
-    val query = excludeEmail match {
-      case Some(email) => users.filter(_.email =!= email).take(limit)
+  def listRecommendUsers(excludeUserId: Option[Long], limit: Int = 3): Future[Seq[User]] = {
+    val query = excludeUserId match {
+      case Some(userId) => users.filter(_.id =!= userId).take(limit)
       case None => users.take(limit)
     }
     database.run(query.result)
   }
 
   def follow(followerId: Long, followedId: Long): Future[Int] = {
-    val action = follows += models.Follow(followerId, followedId)
-    database.run(action)
+    val action = follows.filter(f => f.followerId === followerId && f.followedId === followedId).exists.result.flatMap {
+      case true => DBIO.successful(0)
+      case false => follows += models.Follow(followerId, followedId)
+    }
+    database.run(action.transactionally)
   }
 
   def unfollow(followerId: Long, followedId: Long): Future[Int] = {
