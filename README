@@ -3,6 +3,13 @@ BookNetwork
 
 Play Framework based social library application.
 
+Development
+-----------
+
+- Start the dev server with `make dev` (or `sbt ~run`)
+- Start the server once with `make run`
+- Run tests with `make test`
+
 Implemented
 -----------
 
