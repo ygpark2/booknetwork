@@ -9,12 +9,13 @@ import play.api.data.Forms._
 import play.api.i18n.I18nSupport
 import play.api.mvc.{Action, AnyContent, MessagesAbstractController, MessagesControllerComponents}
 import repositories.UserRepository
+import services.SidebarDataService
 
 import javax.inject._
 import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton
-class AuthController @Inject()(cc: MessagesControllerComponents, userRepository: UserRepository, bookRepository: repositories.BookRepository)(implicit ec: ExecutionContext)
+class AuthController @Inject()(cc: MessagesControllerComponents, userRepository: UserRepository, bookRepository: repositories.BookRepository, sidebarDataService: SidebarDataService)(implicit ec: ExecutionContext)
   extends MessagesAbstractController(cc) with I18nSupport {
 
   private val passwordHasher = new BCryptSha256PasswordHasher()
@@ -36,22 +37,32 @@ class AuthController @Inject()(cc: MessagesControllerComponents, userRepository:
   )
 
   def register: Action[AnyContent] = Action.async { implicit request =>
-    bookRepository.trending().map { trendingBooks =>
-      Ok(views.html.auth.register(registerForm, trendingBooks = trendingBooks))
+    for {
+      trendingBooks <- sidebarDataService.trendingBooks()
+      recommendedUsers <- sidebarDataService.recommendedUsers(request.session.get("userEmail"))
+    } yield {
+      Ok(views.html.auth.register(registerForm, trendingBooks = trendingBooks, recommendedUsers = recommendedUsers))
     }
   }
 
   def registerSubmit: Action[AnyContent] = Action.async { implicit request =>
     registerForm.bindFromRequest().fold(
-      formWithErrors => bookRepository.trending().map { trendingBooks =>
-        BadRequest(views.html.auth.register(formWithErrors, trendingBooks = trendingBooks))
-      },
+      formWithErrors =>
+        for {
+          trendingBooks <- sidebarDataService.trendingBooks()
+          recommendedUsers <- sidebarDataService.recommendedUsers(request.session.get("userEmail"))
+        } yield {
+          BadRequest(views.html.auth.register(formWithErrors, trendingBooks = trendingBooks, recommendedUsers = recommendedUsers))
+        },
       data => {
         userRepository.findByEmail(data.email).flatMap {
           case Some(_) =>
             val formWithError = registerForm.fill(data).withGlobalError("Email already exists")
-            bookRepository.trending().map { trendingBooks =>
-              BadRequest(views.html.auth.register(formWithError, trendingBooks = trendingBooks))
+            for {
+              trendingBooks <- sidebarDataService.trendingBooks()
+              recommendedUsers <- sidebarDataService.recommendedUsers(request.session.get("userEmail"))
+            } yield {
+              BadRequest(views.html.auth.register(formWithError, trendingBooks = trendingBooks, recommendedUsers = recommendedUsers))
             }
           case None =>
             val passwordInfo = passwordHasher.hash(data.password)
@@ -79,16 +90,23 @@ class AuthController @Inject()(cc: MessagesControllerComponents, userRepository:
   }
 
   def login: Action[AnyContent] = Action.async { implicit request =>
-    bookRepository.trending().map { trendingBooks =>
-      Ok(views.html.auth.login(loginForm, trendingBooks = trendingBooks))
+    for {
+      trendingBooks <- sidebarDataService.trendingBooks()
+      recommendedUsers <- sidebarDataService.recommendedUsers(request.session.get("userEmail"))
+    } yield {
+      Ok(views.html.auth.login(loginForm, trendingBooks = trendingBooks, recommendedUsers = recommendedUsers))
     }
   }
 
   def loginSubmit: Action[AnyContent] = Action.async { implicit request =>
     loginForm.bindFromRequest().fold(
-      formWithErrors => bookRepository.trending().map { trendingBooks =>
-        BadRequest(views.html.auth.login(formWithErrors, trendingBooks = trendingBooks))
-      },
+      formWithErrors =>
+        for {
+          trendingBooks <- sidebarDataService.trendingBooks()
+          recommendedUsers <- sidebarDataService.recommendedUsers(request.session.get("userEmail"))
+        } yield {
+          BadRequest(views.html.auth.login(formWithErrors, trendingBooks = trendingBooks, recommendedUsers = recommendedUsers))
+        },
       data => {
         userRepository.findByEmail(data.email).flatMap {
           case Some(user) =>
@@ -107,14 +125,20 @@ class AuthController @Inject()(cc: MessagesControllerComponents, userRepository:
                 .withSession(request.session + ("userEmail" -> user.email)))
             } else {
               val formWithError = loginForm.fill(data).withGlobalError("Invalid email or password")
-              bookRepository.trending().map { trendingBooks =>
-                BadRequest(views.html.auth.login(formWithError, trendingBooks = trendingBooks))
+              for {
+                trendingBooks <- sidebarDataService.trendingBooks()
+                recommendedUsers <- sidebarDataService.recommendedUsers(request.session.get("userEmail"))
+              } yield {
+                BadRequest(views.html.auth.login(formWithError, trendingBooks = trendingBooks, recommendedUsers = recommendedUsers))
               }
             }
           case None =>
             val formWithError = loginForm.fill(data).withGlobalError("Invalid email or password")
-            bookRepository.trending().map { trendingBooks =>
-              BadRequest(views.html.auth.login(formWithError, trendingBooks = trendingBooks))
+            for {
+              trendingBooks <- sidebarDataService.trendingBooks()
+              recommendedUsers <- sidebarDataService.recommendedUsers(request.session.get("userEmail"))
+            } yield {
+              BadRequest(views.html.auth.login(formWithError, trendingBooks = trendingBooks, recommendedUsers = recommendedUsers))
             }
         }
       }

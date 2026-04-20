@@ -1,0 +1,33 @@
+@(book: models.Book, reportForm: play.api.data.Form[String], trendingBooks: Seq[models.Book] = Nil, recommendedUsers: Seq[models.RecommendedUser] = Nil)(using messages: play.api.i18n.Messages, request: play.api.mvc.RequestHeader)
+
+@main("Report Book", trendingBooks = trendingBooks, recommendedUsers = recommendedUsers) {
+  <header class="detail-header">
+      <h2 style="font-size: 1.25rem; font-weight: 700; margin: 0;">Report Book</h2>
+  </header>
+
+  <div class="card" style="margin: 1rem;">
+    <div class="card-header">
+      <h3 class="card-title">@book.title</h3>
+      <p style="color: var(--text-secondary); margin-top: 0.5rem;">Explain what is wrong with this book entry.</p>
+    </div>
+    <div class="card-body">
+      @helper.form(action = routes.InteractionController.submitReport(book.id)) {
+        @helper.CSRF.formField
+        @if(reportForm.hasGlobalErrors) {
+          <p style="color: #ff7b72;">@reportForm.globalError.map(_.message).getOrElse("Please review the form.")</p>
+        }
+        <div class="form-group">
+          <label for="reason">Reason</label>
+          <textarea name="reason" id="reason" rows="6" required>@reportForm("reason").value</textarea>
+          @reportForm("reason").error.map { error =>
+            <p style="color: #ff7b72; margin-top: 0.5rem;">@error.message</p>
+          }
+        </div>
+        <div class="mt-4" style="display: flex; gap: 0.75rem; justify-content: flex-end;">
+          <a href="@routes.BookController.detail(book.id)" class="btn btn-secondary">Cancel</a>
+          <button type="submit" class="btn btn-primary">Submit Report</button>
+        </div>
+      }
+    </div>
+  </div>
+}

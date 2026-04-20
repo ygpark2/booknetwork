@@ -17,12 +17,13 @@ class DataInitializer @Inject()(
 
   private val logger = Logger(this.getClass)
   private val systemEmail = "system@booknetwork.dev"
+  private val seedEnabled = env.mode != play.api.Mode.Test
 
   val init: Future[Unit] = (for {
     _ <- userRepository.schemaCreation
     _ <- bookRepository.schemaCreation
     count <- userRepository.count()
-    _ <- if (count == 0) {
+    _ <- if (seedEnabled && count == 0) {
       logger.info("No users found. Seeding initial data from CSV...")
       seedData()
     } else {
@@ -46,7 +47,9 @@ class DataInitializer @Inject()(
       _ <- userRepository.insert(antonioUser)
       _ <- userRepository.insertLibraryPolicy(LibraryPolicy(ownerId = userId, dailyOverdueFee = BigDecimal(0.50)))
       books = loadBooksFromCsv(userId)
-      _ <- Future.sequence(books.map(bookRepository.insert))
+      _ <- books.foldLeft(Future.successful(())) { (acc, book) =>
+        acc.flatMap(_ => bookRepository.insert(book).map(_ => ()))
+      }
     } yield {
       logger.info(s"Successfully seeded ${books.length} books and dummy users from CSV.")
       ()

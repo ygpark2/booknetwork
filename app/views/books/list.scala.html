@@ -1,13 +1,17 @@
-@(booksWithData: Seq[models.BookViewData], listTitle: String = "Home", trendingBooks: Seq[models.Book] = Nil)(implicit messages: play.api.i18n.Messages, request: play.api.mvc.RequestHeader)
+@(booksWithData: Seq[models.BookViewData], listTitle: String = "Home", trendingBooks: Seq[models.Book] = Nil, recommendedUsers: Seq[models.RecommendedUser] = Nil)(using messages: play.api.i18n.Messages, request: play.api.mvc.RequestHeader)
 
-@main(listTitle, trendingBooks = trendingBooks) {
+@main(listTitle, trendingBooks = trendingBooks, recommendedUsers = recommendedUsers) {
     <!-- Sticky Header -->
     <header class="detail-header">
         <h2 style="font-size: 1.25rem; font-weight: 700; margin: 0;">@listTitle</h2>
         <div style="margin-left: auto; display: flex; align-items: center; gap: 0.75rem;">
+            <form onsubmit="event.preventDefault(); goToIsbnFeed(this);" style="display: flex; align-items: center; gap: 0.5rem; margin: 0;">
+                <input type="text" name="isbn" placeholder="Jump to ISBN" style="width: 160px; padding: 0.45rem 0.7rem; border-radius: 999px; border: 1px solid var(--border-color); background: var(--surface-color); color: var(--text-primary);">
+                <button type="submit" class="btn btn-secondary" style="padding: 0.35rem 0.75rem; border-radius: 20px; font-size: 0.8rem;">Open</button>
+            </form>
             @request.session.get("userEmail").map { _ =>
                 <a href="@routes.BookController.create" class="btn btn-primary" style="padding: 0.35rem 0.75rem; font-size: 0.8rem; border-radius: 20px;">
-                    <i class="fa-solid fa-plus" style="margin-right: 0.25rem;"></i> Post Book
+                    <i class="fa-solid fa-plus" style="margin-right: 0.25rem;"></i> Share Reading Post
                 </a>
             }
         </div>
@@ -26,10 +30,12 @@
                     </div>
                     <span class="timestamp">
                        @{
-                           // Simulating random timestamps for demo as book model lacks created_at
-                           val r = new scala.util.Random(book.id.toInt)
-                           val days = r.nextInt(10) + 1
-                           s"${days}d"
+                           val now = java.time.LocalDateTime.now()
+                           val duration = java.time.Duration.between(book.createdAt, now)
+                           if (duration.toMinutes < 1) "now"
+                           else if (duration.toHours < 1) s"${duration.toMinutes}m"
+                           else if (duration.toHours < 24) s"${duration.toHours}h"
+                           else s"${duration.toDays}d"
                        }
                     </span>
                     <div class="dropdown" style="margin-left: auto;">
@@ -42,7 +48,7 @@
                             </ul>
                         } else {
                             <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="dropdownMenuButton-@book.id" style="background-color: var(--card-bg); border: 1px solid var(--border-color);">
-                                <li><a class="dropdown-item" href="#" style="color: var(--text-primary);">Report</a></li>
+                                <li><a class="dropdown-item" href="@routes.InteractionController.showReportForm(book.id)" style="color: var(--text-primary);">Report</a></li>
                             </ul>
                         }
                     </div>
@@ -51,19 +57,35 @@
                 <div class="feed-content">
                     <h3 style="font-size: 1rem; margin-bottom: 0.25rem;">
                         <a href="@routes.BookController.detail(book.id)" style="color: var(--text-primary); text-decoration: none; font-weight: 600;">
-                            @book.title
+                            @book.reviewHeadline.getOrElse(book.title)
                         </a>
                     </h3>
+                    <div style="font-size: 0.92rem; color: var(--text-primary); margin-bottom: 0.35rem;">
+                        @book.title by @book.author
+                    </div>
                     
                     @for(sub <- book.metadata.subtitle) {
                         <div style="font-size: 0.9rem; color: var(--text-secondary); margin-bottom: 0.5rem;">@sub</div>
                     }
 
                     <p style="margin-bottom: 0.5rem;">
-                        @book.description.map(_.take(150) + "...").getOrElse("No description provided.")
+                        @book.description.map(text => if (text.length > 150) text.take(150) + "..." else text).getOrElse("No reading note provided.")
                     </p>
 
                     <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                        <span class="badge" style="background-color: rgba(88, 166, 255, 0.15); color: #58a6ff; border-color: rgba(88, 166, 255, 0.4);">
+                            @book.readingStatus.replace("_", " ").toLowerCase.capitalize
+                        </span>
+                        @book.rating.map { rating =>
+                            <span class="badge" style="background-color: rgba(249, 168, 37, 0.16); color: #fbbf24; border-color: rgba(249, 168, 37, 0.35);">
+                                @rating/5
+                            </span>
+                        }
+                        @book.metadata.isbn13.orElse(book.metadata.isbn10).map { isbn =>
+                            <a href="@routes.BookController.isbnFeed(isbn)" class="badge" style="text-decoration: none; background-color: rgba(63, 185, 80, 0.15); color: #3fb950; border-color: rgba(63, 185, 80, 0.4);">
+                                ISBN @isbn
+                            </a>
+                        }
                         <span class="badge" style="background-color: rgba(56, 139, 253, 0.15); color: #58a6ff; border-color: rgba(56, 139, 253, 0.4);">
                             @book.metadata.subjects.map(_.split(",").headOption.getOrElse("Fiction")).getOrElse("General")
                         </span>
@@ -109,4 +131,13 @@
             </article>
         }
     }
+
+    <script>
+        function goToIsbnFeed(form) {
+            const raw = form.isbn.value || "";
+            const normalized = raw.toUpperCase().replace(/[^0-9X]/g, "");
+            if (!normalized) return;
+            window.location.href = "/books/isbn/" + encodeURIComponent(normalized);
+        }
+    </script>
 }

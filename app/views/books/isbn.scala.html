@@ -1,0 +1,56 @@
+@(isbn: String, bookTitle: String, bookAuthor: String, booksWithData: Seq[models.BookViewData], trendingBooks: Seq[models.Book] = Nil, recommendedUsers: Seq[models.RecommendedUser] = Nil)(using messages: play.api.i18n.Messages, request: play.api.mvc.RequestHeader)
+
+@main(s"ISBN $isbn", trendingBooks = trendingBooks, recommendedUsers = recommendedUsers) {
+    <header class="detail-header">
+        <a href="@routes.BookController.list" class="back-btn">
+            <i class="fa-solid fa-arrow-left"></i>
+        </a>
+        <div>
+            <h2 style="font-size: 1.1rem; font-weight: 700; margin: 0;">ISBN Community</h2>
+            <div style="font-size: 0.85rem; color: var(--text-secondary);">@bookTitle by @bookAuthor</div>
+        </div>
+        <div style="margin-left: auto;">
+            <a href="@routes.BookController.create.url?isbn=@isbn&title=@java.net.URLEncoder.encode(bookTitle, "UTF-8")&author=@java.net.URLEncoder.encode(bookAuthor, "UTF-8")" class="btn btn-primary" style="padding: 0.35rem 0.8rem; border-radius: 20px; font-size: 0.8rem;">
+                Share My Post
+            </a>
+        </div>
+    </header>
+
+    <div style="padding: 1rem; border-bottom: 1px solid var(--border-color); color: var(--text-secondary);">
+        <strong style="color: var(--text-primary);">@booksWithData.size</strong> reader posts are linked by ISBN <strong style="color: var(--text-primary);">@isbn</strong>.
+    </div>
+
+    @for(data <- booksWithData) {
+        @defining(data.book) { book =>
+            <article class="feed-item">
+                <header class="feed-header">
+                    <div class="avatar">@book.author.headOption.getOrElse('?')</div>
+                    <div class="user-info">
+                        <span class="user-name">@book.author</span>
+                        <span class="user-handle">@book.readingStatus.replace("_", " ").toLowerCase</span>
+                    </div>
+                    <span class="timestamp">@book.createdAt.format(java.time.format.DateTimeFormatter.ofPattern("MMM d"))</span>
+                </header>
+                <div class="feed-content">
+                    <a href="@routes.BookController.detail(book.id)" style="color: var(--text-primary); text-decoration: none; font-weight: 700;">
+                        @book.reviewHeadline.getOrElse(book.title)
+                    </a>
+                    <div style="margin-top: 0.35rem; font-size: 0.9rem; color: var(--text-secondary);">@book.title by @book.author</div>
+                    @book.rating.map { rating =>
+                        <div style="margin-top: 0.35rem; color: #fbbf24;">@("★" * rating)@("☆" * (5 - rating))</div>
+                    }
+                    <p style="margin-top: 0.6rem;">@book.description.map(text => if (text.length > 220) text.take(220) + "..." else text).getOrElse("No reading note shared.")</p>
+                </div>
+                <footer class="feed-actions">
+                    <a href="@routes.BookController.detail(book.id)" class="action-btn" style="text-decoration: none;">
+                        <i class="fa-regular fa-comment"></i>
+                        <span>@data.commentCount</span>
+                    </a>
+                    <span class="action-btn"><i class="fa-solid fa-retweet"></i><span>@data.repostCount</span></span>
+                    <span class="action-btn"><i class="fa-regular fa-heart"></i><span>@data.likeCount</span></span>
+                    <span class="action-btn"><i class="fa-regular fa-bookmark"></i><span>@data.bookmarkCount</span></span>
+                </footer>
+            </article>
+        }
+    }
+}

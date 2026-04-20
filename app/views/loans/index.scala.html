@@ -1,6 +1,6 @@
-@(loanForm: play.api.data.Form[forms.LoanForm], activeLoans: Seq[models.Loan], ownerItems: Seq[models.BookItem], trendingBooks: Seq[models.Book] = Nil)(implicit messages: play.api.i18n.Messages, request: play.api.mvc.RequestHeader)
+@(loanForm: play.api.data.Form[forms.LoanForm], activeLoans: Seq[models.LoanViewData], paymentsByLoan: Map[Long, Seq[models.LoanPayment]], ownerItems: Seq[models.BookItem], trendingBooks: Seq[models.Book] = Nil, recommendedUsers: Seq[models.RecommendedUser] = Nil)(using messages: play.api.i18n.Messages, request: play.api.mvc.RequestHeader)
 
-@main("Loans Dashboard", trendingBooks = trendingBooks) {
+@main("Loans Dashboard", trendingBooks = trendingBooks, recommendedUsers = recommendedUsers) {
   <header class="detail-header">
       <h2 style="font-size: 1.25rem; font-weight: 700; margin: 0;">Loans</h2>
   </header>
@@ -38,17 +38,46 @@
                 <p style="color: var(--text-secondary);">No active loans.</p>
             } else {
                 <ul style="list-style: none;">
-                    @for(loan <- activeLoans) {
+                    @for(view <- activeLoans) {
+                        @defining(paymentsByLoan.getOrElse(view.loan.id, Nil)) { payments =>
                         <li style="border-bottom: 1px solid var(--border-color); padding: 1rem 0; display: flex; justify-content: space-between; align-items: center;">
                             <div>
-                                <strong style="display: block; margin-bottom: 0.25rem;">Loan #@loan.id</strong>
-                                <span style="font-size: 0.85rem; color: var(--text-secondary);">Item: @loan.bookItemId | Due: @loan.dueAt</span>
+                                <strong style="display: block; margin-bottom: 0.25rem;">@view.book.title</strong>
+                                <span style="font-size: 0.85rem; color: var(--text-secondary); display: block;">Borrower: @view.borrower.name</span>
+                                <span style="font-size: 0.85rem; color: var(--text-secondary); display: block;">Item: #@view.item.id | Due: @view.loan.dueAt | Extensions: @view.loan.extensionsUsed</span>
+                                @if(view.overdueDays > 0) {
+                                    <span style="font-size: 0.85rem; color: #ff7b72; display: block;">Overdue: @view.overdueDays day(s) · Fee: @view.overdueFee</span>
+                                }
+                                @if(view.loan.overdueFeePaidAmount > 0) {
+                                    <span style="font-size: 0.85rem; color: #3fb950; display: block;">Paid so far: @view.loan.overdueFeePaidAmount</span>
+                                }
+                                @if(view.isOverdueSettled) {
+                                    <span style="font-size: 0.85rem; color: #3fb950; display: block;">Overdue fee settled on @view.loan.overdueFeePaidAt.getOrElse(view.loan.dueAt)</span>
+                                } else if (view.outstandingOverdueFee > 0) {
+                                    <span style="font-size: 0.85rem; color: #ff7b72; display: block;">Outstanding fee: @view.outstandingOverdueFee</span>
+                                }
+                                @if(payments.nonEmpty) {
+                                    <div style="margin-top: 0.5rem;">
+                                        @for(payment <- payments) {
+                                            <span style="font-size: 0.8rem; color: var(--text-secondary); display: block;">Payment @payment.paidAt · @payment.amount · <a href="@routes.ReceiptController.download(payment.receiptNumber)">Receipt @payment.receiptNumber</a></span>
+                                        }
+                                    </div>
+                                }
                             </div>
-                            @helper.form(action = routes.LoanController.returnLoan(loan.id)) {
-                                @helper.CSRF.formField
-                                <button type="submit" class="btn btn-sm btn-secondary">Return</button>
-                            }
+                            <div style="display: flex; gap: 0.5rem;">
+                                @if(view.canExtend) {
+                                    @helper.form(action = routes.LoanController.extendLoan(view.loan.id), Symbol("style") -> "margin: 0;") {
+                                        @helper.CSRF.formField
+                                        <button type="submit" class="btn btn-sm btn-secondary">Extend</button>
+                                    }
+                                }
+                                @helper.form(action = routes.LoanController.returnLoan(view.loan.id), Symbol("style") -> "margin: 0;") {
+                                    @helper.CSRF.formField
+                                    <button type="submit" class="btn btn-sm btn-secondary">Return</button>
+                                }
+                            </div>
                         </li>
+                        }
                     }
                 </ul>
             }
@@ -68,7 +97,7 @@
                         <li style="border-bottom: 1px solid var(--border-color); padding: 1rem 0;">
                             <strong style="display: block; margin-bottom: 0.25rem;">Item #@item.id</strong>
                             <span style="font-size: 0.85rem; color: var(--text-secondary);">Barcode: @item.barcode</span>
-                            <span class="badge @if(item.status == "Available") { badge-green } else { badge-blue }" style="margin-left: 0.5rem;">@item.status</span>
+                            <span class="badge @if(item.status == "AVAILABLE") { badge-green } else { badge-blue }" style="margin-left: 0.5rem;">@item.status</span>
                         </li>
                     }
                 </ul>

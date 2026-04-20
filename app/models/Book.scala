@@ -2,6 +2,7 @@ package models
 
 import slick.jdbc.H2Profile.api._
 import slick.lifted.ProvenShape
+import java.time.LocalDateTime
 
 case class BookMetadata(
   subtitle: Option[String] = None,
@@ -115,7 +116,11 @@ case class Book(
   title: String,
   author: String,
   description: Option[String],
-  metadata: BookMetadata = BookMetadata()
+  reviewHeadline: Option[String] = None,
+  readingStatus: String = "FINISHED",
+  rating: Option[Int] = None,
+  metadata: BookMetadata = BookMetadata(),
+  createdAt: LocalDateTime = LocalDateTime.now()
 )
 
 case class BookViewData(
@@ -136,6 +141,10 @@ class BooksTable(tag: Tag) extends Table[Book](tag, "BOOKS") {
   def title: Rep[String] = column[String]("TITLE")
   def author: Rep[String] = column[String]("AUTHOR")
   def description: Rep[Option[String]] = column[Option[String]]("DESCRIPTION")
+  def reviewHeadline: Rep[Option[String]] = column[Option[String]]("REVIEW_HEADLINE")
+  def readingStatus: Rep[String] = column[String]("READING_STATUS")
+  def rating: Rep[Option[Int]] = column[Option[Int]]("RATING")
+  def createdAt: Rep[LocalDateTime] = column[LocalDateTime]("CREATED_AT")
   def subtitle: Rep[Option[String]] = column[Option[String]]("SUBTITLE")
   def isbn10: Rep[Option[String]] = column[Option[String]]("ISBN10")
   def isbn13: Rep[Option[String]] = column[Option[String]]("ISBN13")
@@ -188,13 +197,13 @@ class BooksTable(tag: Tag) extends Table[Book](tag, "BOOKS") {
 
   def metadata = metadataColumns <> (BookMetadata.fromTuple, BookMetadata.toTuple)
 
-  private def bookTupled(tuple: (Long, Long, String, String, Option[String], BookMetadata)): Book =
-    Book(tuple._1, tuple._2, tuple._3, tuple._4, tuple._5, tuple._6)
+  private def bookTupled(tuple: (Long, Long, String, String, Option[String], Option[String], String, Option[Int], BookMetadata, LocalDateTime)): Book =
+    Book(tuple._1, tuple._2, tuple._3, tuple._4, tuple._5, tuple._6, tuple._7, tuple._8, tuple._9, tuple._10)
 
-  private def bookUntupled(book: Book): Option[(Long, Long, String, String, Option[String], BookMetadata)] =
-    Some((book.id, book.ownerId, book.title, book.author, book.description, book.metadata))
+  private def bookUntupled(book: Book): Option[(Long, Long, String, String, Option[String], Option[String], String, Option[Int], BookMetadata, LocalDateTime)] =
+    Some((book.id, book.ownerId, book.title, book.author, book.description, book.reviewHeadline, book.readingStatus, book.rating, book.metadata, book.createdAt))
 
-  override def * : ProvenShape[Book] = (id, ownerId, title, author, description, metadata) <> (bookTupled, bookUntupled)
+  override def * : ProvenShape[Book] = (id, ownerId, title, author, description, reviewHeadline, readingStatus, rating, metadata, createdAt) <> (bookTupled, bookUntupled)
 }
 
 case class BookLike(userId: Long, bookId: Long)
@@ -246,4 +255,31 @@ class BookCommentsTable(tag: Tag) extends Table[BookComment](tag, "BOOK_COMMENTS
     Some((c.id, c.userId, c.bookId, c.parentId, c.content, c.createdAt))
 
   override def * = (id, userId, bookId, parentId, content, createdAt) <> (commentTupled, commentUntupled)
+}
+
+case class BookReport(
+  id: Long = 0L,
+  userId: Long,
+  bookId: Long,
+  reason: String,
+  createdAt: java.time.LocalDateTime = java.time.LocalDateTime.now()
+)
+
+class BookReportsTable(tag: Tag) extends Table[BookReport](tag, "BOOK_REPORTS") {
+  def id = column[Long]("ID", O.PrimaryKey, O.AutoInc)
+  def userId = column[Long]("USER_ID")
+  def bookId = column[Long]("BOOK_ID")
+  def reason = column[String]("REASON")
+  def createdAt = column[java.time.LocalDateTime]("CREATED_AT")
+
+  def user = foreignKey("FK_REPORT_USER", userId, TableQuery[UsersTable])(_.id)
+  def book = foreignKey("FK_REPORT_BOOK", bookId, TableQuery[BooksTable])(_.id)
+
+  private def reportTupled(tuple: (Long, Long, Long, String, java.time.LocalDateTime)): BookReport =
+    BookReport(tuple._1, tuple._2, tuple._3, tuple._4, tuple._5)
+
+  private def reportUntupled(report: BookReport): Option[(Long, Long, Long, String, java.time.LocalDateTime)] =
+    Some((report.id, report.userId, report.bookId, report.reason, report.createdAt))
+
+  override def * = (id, userId, bookId, reason, createdAt) <> (reportTupled, reportUntupled)
 }

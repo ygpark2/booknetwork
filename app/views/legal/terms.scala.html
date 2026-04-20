@@ -1,0 +1,15 @@
+@(trendingBooks: Seq[models.Book] = Nil, recommendedUsers: Seq[models.RecommendedUser] = Nil)(using messages: play.api.i18n.Messages, request: play.api.mvc.RequestHeader)
+
+@main("Terms of Service", trendingBooks = trendingBooks, recommendedUsers = recommendedUsers) {
+  <header class="detail-header">
+      <h2 style="font-size: 1.25rem; font-weight: 700; margin: 0;">Terms of Service</h2>
+  </header>
+
+  <div class="card" style="margin: 1rem;">
+    <div class="card-body" style="display: grid; gap: 1rem; line-height: 1.6;">
+      <p>BookNetwork is a community catalog for sharing and lending books. Use it lawfully and do not post misleading inventory, abusive content, or unauthorized personal data.</p>
+      <p>You are responsible for the books, comments, and reports you submit. Repeated misuse can lead to account restriction or content removal.</p>
+      <p>Loan agreements created through the app are between the participating users. BookNetwork records the transaction state but does not guarantee fulfillment.</p>
+    </div>
+  </div>
+}

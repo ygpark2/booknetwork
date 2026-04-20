@@ -1,0 +1,46 @@
+@(recommendedUsers: Seq[models.RecommendedUser], trendingBooks: Seq[models.Book] = Nil, sidebarRecommendedUsers: Seq[models.RecommendedUser] = Nil)(using messages: play.api.i18n.Messages, request: play.api.mvc.RequestHeader)
+
+@main("Discover Readers", trendingBooks = trendingBooks, recommendedUsers = sidebarRecommendedUsers) {
+  <header class="detail-header">
+      <h2 style="font-size: 1.25rem; font-weight: 700; margin: 0;">Discover Readers</h2>
+  </header>
+
+  <div style="padding: 1rem; display: grid; gap: 1rem;">
+    @if(recommendedUsers.isEmpty) {
+      <div class="card">
+        <div class="card-body">
+          <p style="color: var(--text-secondary); margin: 0;">No user recommendations are available yet.</p>
+        </div>
+      </div>
+    } else {
+      @for(entry <- recommendedUsers) {
+        <div class="card">
+          <div class="card-body" style="display: flex; align-items: center; justify-content: space-between; gap: 1rem;">
+            <div style="display: flex; align-items: center; gap: 0.75rem;">
+              <div class="avatar" style="width: 48px; height: 48px; font-size: 1rem;">@entry.user.name.headOption.getOrElse('?')</div>
+              <div>
+                <div style="font-weight: 700;">@entry.user.name</div>
+                <div style="color: var(--text-secondary); font-size: 0.9rem;">@@@entry.user.email.split("@").headOption.getOrElse("user")</div>
+              </div>
+            </div>
+            @if(request.session.get("userEmail").isDefined) {
+              @if(entry.isFollowing) {
+                @helper.form(action = routes.UserController.unfollow(entry.user.id), Symbol("style") -> "margin: 0;") {
+                  @helper.CSRF.formField
+                  <button type="submit" class="btn btn-sm btn-secondary" style="border-radius: 20px;">Following</button>
+                }
+              } else {
+                @helper.form(action = routes.UserController.follow(entry.user.id), Symbol("style") -> "margin: 0;") {
+                  @helper.CSRF.formField
+                  <button type="submit" class="btn btn-sm btn-primary" style="border-radius: 20px;">Follow</button>
+                }
+              }
+            } else {
+              <a href="@routes.AuthController.login" class="btn btn-sm btn-secondary" style="border-radius: 20px;">Log In</a>
+            }
+          </div>
+        </div>
+      }
+    }
+  </div>
+}

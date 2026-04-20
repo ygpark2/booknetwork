@@ -1,0 +1,15 @@
+@(trendingBooks: Seq[models.Book] = Nil, recommendedUsers: Seq[models.RecommendedUser] = Nil)(using messages: play.api.i18n.Messages, request: play.api.mvc.RequestHeader)
+
+@main("Privacy Policy", trendingBooks = trendingBooks, recommendedUsers = recommendedUsers) {
+  <header class="detail-header">
+      <h2 style="font-size: 1.25rem; font-weight: 700; margin: 0;">Privacy Policy</h2>
+  </header>
+
+  <div class="card" style="margin: 1rem;">
+    <div class="card-body" style="display: grid; gap: 1rem; line-height: 1.6;">
+      <p>BookNetwork stores account details needed for authentication and book lending, including your name, email, and the activity you create in the app.</p>
+      <p>We use this data to operate book listings, comments, bookmarks, follows, loans, and moderation reports. We do not expose password hashes in the UI.</p>
+      <p>If you need data removal or account cleanup, an administrator must handle that request because self-service deletion is not implemented yet.</p>
+    </div>
+  </div>
+}

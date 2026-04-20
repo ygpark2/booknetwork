@@ -1,6 +1,6 @@
-@(policyForm: play.api.data.Form[forms.PolicyForm], trendingBooks: Seq[models.Book] = Nil)(implicit messages: play.api.i18n.Messages, request: play.api.mvc.RequestHeader)
+@(policyForm: play.api.data.Form[forms.PolicyForm], trendingBooks: Seq[models.Book] = Nil, recommendedUsers: Seq[models.RecommendedUser] = Nil)(using messages: play.api.i18n.Messages, request: play.api.mvc.RequestHeader)
 
-@main("Penalties", trendingBooks = trendingBooks) {
+@main("Penalties", trendingBooks = trendingBooks, recommendedUsers = recommendedUsers) {
   <header class="detail-header">
       <h2 style="font-size: 1.25rem; font-weight: 700; margin: 0;">Penalties</h2>
   </header>

@@ -1,14 +1,14 @@
-@(bookForm: play.api.data.Form[forms.BookForm], trendingBooks: Seq[models.Book] = Nil)(implicit messages: play.api.i18n.Messages, request: play.api.mvc.RequestHeader)
+@(bookForm: play.api.data.Form[forms.BookForm], trendingBooks: Seq[models.Book] = Nil, recommendedUsers: Seq[models.RecommendedUser] = Nil)(using messages: play.api.i18n.Messages, request: play.api.mvc.RequestHeader)
 
-@main("Post a Book", trendingBooks = trendingBooks) {
+@main("Share a Book", trendingBooks = trendingBooks, recommendedUsers = recommendedUsers) {
   <div class="mb-4">
       <a href="@routes.BookController.list" class="btn btn-sm btn-secondary">&larr; Back to Books</a>
   </div>
 
   <div class="card" style="margin: 0 auto;">
     <div class="card-header">
-        <h1 class="card-title" style="font-size: 1.75rem;">Post a New Book</h1>
-        <p style="color: var(--text-secondary);">Fill in the details to add a book to the library.</p>
+        <h1 class="card-title" style="font-size: 1.75rem;">Share a Reading Post</h1>
+        <p style="color: var(--text-secondary);">Use the ISBN to connect your post with other readers of the same book.</p>
     </div>
     
     <div class="card-body">
@@ -38,8 +38,33 @@
             </div>
 
             <div class="form-group col-span-2">
-                <label for="description">Description</label>
-                <textarea name="description" id="description" rows="4">@bookForm("description").value</textarea>
+                <label for="reviewHeadline">Headline</label>
+                <input type="text" name="reviewHeadline" id="reviewHeadline" value="@bookForm("reviewHeadline").value" placeholder="One-line takeaway from this book">
+            </div>
+
+            <div class="form-group">
+                <label for="readingStatus">Reading Status</label>
+                <select name="readingStatus" id="readingStatus">
+                    <option value="WANT_TO_READ" @if(bookForm("readingStatus").value.contains("WANT_TO_READ")) { selected }>Want to Read</option>
+                    <option value="READING" @if(bookForm("readingStatus").value.contains("READING")) { selected }>Reading</option>
+                    <option value="FINISHED" @if(bookForm("readingStatus").value.forall(_ == "FINISHED")) { selected }>Finished</option>
+                    <option value="REREADING" @if(bookForm("readingStatus").value.contains("REREADING")) { selected }>Re-reading</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="rating">Rating</label>
+                <select name="rating" id="rating">
+                    <option value="">No rating</option>
+                    @for(score <- 1 to 5) {
+                        <option value="@score" @if(bookForm("rating").value.contains(score.toString)) { selected }>@score / 5</option>
+                    }
+                </select>
+            </div>
+
+            <div class="form-group col-span-2">
+                <label for="description">My Thoughts</label>
+                <textarea name="description" id="description" rows="6" placeholder="What stayed with you? What should other readers know?">@bookForm("description").value</textarea>
             </div>
 
              <div class="form-group col-span-2">

@@ -1,13 +1,13 @@
-@(viewData: models.BookViewData, items: Seq[models.BookItem], itemForm: play.api.data.Form[(String, Option[String], Option[String])], comments: Seq[(models.BookComment, models.User)], trendingBooks: Seq[models.Book] = Nil)(implicit messages: play.api.i18n.Messages, request: play.api.mvc.RequestHeader)
+@(viewData: models.BookViewData, items: Seq[models.BookItem], itemForm: play.api.data.Form[(String, Option[String], Option[String])], comments: Seq[(models.BookComment, models.User)], relatedByIsbn: Seq[models.BookViewData], readingStatusLabel: String, trendingBooks: Seq[models.Book] = Nil, recommendedUsers: Seq[models.RecommendedUser] = Nil)(using messages: play.api.i18n.Messages, request: play.api.mvc.RequestHeader)
 
-@main("Book Detail", trendingBooks = trendingBooks) {
+@main("Book Detail", trendingBooks = trendingBooks, recommendedUsers = recommendedUsers) {
     @defining(viewData.book) { book =>
         <!-- Detail Header -->
         <header class="detail-header">
             <a href="@routes.BookController.list" class="back-btn">
                 <i class="fa-solid fa-arrow-left"></i>
             </a>
-            <h2 style="font-size: 1.25rem; font-weight: 700; margin: 0;">Book Thread</h2>
+            <h2 style="font-size: 1.25rem; font-weight: 700; margin: 0;">Reading Post</h2>
         </header>
 
         <!-- Main Post (Book Detail) -->
@@ -30,7 +30,7 @@
                         </ul>
                     } else {
                         <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="detailMenuButton" style="background-color: var(--card-bg); border: 1px solid var(--border-color);">
-                            <li><a class="dropdown-item" href="#" style="color: var(--text-primary);">Report</a></li>
+                            <li><a class="dropdown-item" href="@routes.InteractionController.showReportForm(book.id)" style="color: var(--text-primary);">Report</a></li>
                         </ul>
                     }
                 </div>
@@ -38,13 +38,32 @@
 
             <div class="feed-content" style="margin-left: 0; margin-top: 1rem; font-size: 1.1rem;">
                 <h1 style="font-size: 1.5rem; margin-bottom: 0.5rem;">@book.title</h1>
+                @book.reviewHeadline.map { headline =>
+                    <div style="font-size: 1.05rem; font-weight: 600; margin-bottom: 0.75rem;">@headline</div>
+                }
                 
                 @book.metadata.subtitle.map { sub =>
                     <div style="font-size: 1rem; color: var(--text-secondary); margin-bottom: 1rem;">@sub</div>
                 }
+
+                <div style="display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 1rem;">
+                    <span class="badge" style="background-color: rgba(88, 166, 255, 0.15); color: #58a6ff; border-color: rgba(88, 166, 255, 0.4);">
+                        @readingStatusLabel
+                    </span>
+                    @book.rating.map { rating =>
+                        <span class="badge" style="background-color: rgba(249, 168, 37, 0.16); color: #fbbf24; border-color: rgba(249, 168, 37, 0.35);">
+                            @("★" * rating)@("☆" * (5 - rating))
+                        </span>
+                    }
+                    @book.metadata.isbn13.orElse(book.metadata.isbn10).map { isbn =>
+                        <a href="@routes.BookController.isbnFeed(isbn)" class="badge" style="text-decoration: none; background-color: rgba(63, 185, 80, 0.15); color: #3fb950; border-color: rgba(63, 185, 80, 0.4);">
+                            ISBN @isbn
+                        </a>
+                    }
+                </div>
                 
                 <p style="margin-bottom: 1rem; line-height: 1.6;">
-                    @book.description.getOrElse("No description provided.")
+                    @book.description.getOrElse("No reading note shared yet.")
                 </p>
 
                 <div style="margin-top: 1rem; padding: 1rem; background-color: rgba(22, 27, 34, 0.5); border: 1px solid var(--border-color); border-radius: var(--border-radius);">
@@ -55,6 +74,13 @@
                         <div><span style="color: var(--text-secondary);">Year:</span> @book.metadata.publicationYear.map(_.toString).getOrElse("-")</div>
                         <div><span style="color: var(--text-secondary);">Pages:</span> @book.metadata.pages.map(_.toString).getOrElse("-")</div>
                     </div>
+                    @book.metadata.isbn13.orElse(book.metadata.isbn10).map { isbn =>
+                        <div style="margin-top: 0.75rem;">
+                            <a href="@routes.BookController.isbnFeed(isbn)" style="color: var(--accent-color); text-decoration: none;">See everyone sharing thoughts on this ISBN</a>
+                            <span style="color: var(--text-secondary);"> · </span>
+                            <a href="@routes.BookController.create.url?isbn=@isbn&title=@java.net.URLEncoder.encode(book.title, "UTF-8")&author=@java.net.URLEncoder.encode(book.author, "UTF-8")" style="color: var(--accent-color); text-decoration: none;">Write your own post for this book</a>
+                        </div>
+                    }
                 </div>
 
                 <!-- Inventory Table -->
@@ -73,7 +99,7 @@
                 </div>
 
                 <div style="margin-top: 1rem; color: var(--text-secondary); font-size: 0.9rem;">
-                    <span>10:30 AM · Mar 25, 2026</span> · <span style="color: var(--text-primary);">BookNetwork Web App</span>
+                    <span>@book.createdAt.format(java.time.format.DateTimeFormatter.ofPattern("h:mm a · MMM d, yyyy"))</span> · <span style="color: var(--text-primary);">BookNetwork Web App</span>
                 </div>
                 
                 <div style="border-top: 1px solid var(--border-color); border-bottom: 1px solid var(--border-color); padding: 0.75rem 0; margin-top: 1rem; display: flex; gap: 1rem;">
@@ -114,6 +140,32 @@
                 </div>
             </div>
         </article>
+
+        @if(relatedByIsbn.nonEmpty) {
+            <section class="comment-section" style="border-top: 1px solid var(--border-color);">
+                <div style="padding: 1rem 1.25rem 0.5rem;">
+                    <h3 style="font-size: 1rem; margin: 0;">Readers Talking About The Same ISBN</h3>
+                    <p style="color: var(--text-secondary); font-size: 0.9rem; margin: 0.35rem 0 0;">Jump into nearby reading notes for this exact book.</p>
+                </div>
+                @for(data <- relatedByIsbn) {
+                    @defining(data.book) { related =>
+                        <article class="feed-item" style="border-bottom: 1px solid var(--border-color);">
+                            <header class="feed-header">
+                                <div class="avatar">@related.author.headOption.getOrElse('?')</div>
+                                <div class="user-info">
+                                    <span class="user-name">@related.author</span>
+                                    <span class="user-handle">@related.readingStatus.replace("_", " ").toLowerCase</span>
+                                </div>
+                            </header>
+                            <div class="feed-content">
+                                <a href="@routes.BookController.detail(related.id)" style="color: var(--text-primary); text-decoration: none; font-weight: 700;">@related.reviewHeadline.getOrElse(related.title)</a>
+                                <p style="margin: 0.5rem 0 0;">@related.description.map(_.take(180)).getOrElse("No note shared.")</p>
+                            </div>
+                        </article>
+                    }
+                }
+            </section>
+        }
 
         <!-- Comments Section -->
         <section class="comment-section">
